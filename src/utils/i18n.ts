@@ -123,7 +123,7 @@ const ja = {
 	authorHeading: "この記事を書いた人",
 	relatedPosts: "関連記事",
 	updatedOn: (date: string) => `${date} 更新`,
-	breadcrumbHome: "ホーム",
+	breadcrumbHome: "タイムライン",
 	breadcrumbLabel: "パンくずリスト",
 
 	tabsLabel: "表示の切り替え",
@@ -249,7 +249,7 @@ const en: UIStrings = {
 	authorHeading: "About the author",
 	relatedPosts: "Related posts",
 	updatedOn: (date) => `Updated ${date}`,
-	breadcrumbHome: "Home",
+	breadcrumbHome: "Timeline",
 	breadcrumbLabel: "Breadcrumb",
 
 	tabsLabel: "Switch view",
