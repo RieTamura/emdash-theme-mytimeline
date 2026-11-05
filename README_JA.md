@@ -98,6 +98,29 @@ npm run deploy
 
 RSS で読めるのは、YouTube、note、Zenn、はてなブログだけです。取り込んだ内容がトップページに出るまで、最長で 20 分ほどかかります。
 
+## 記事を Bluesky に自動で投稿する（任意）
+
+上の Bluesky To EmDash は、Bluesky からサイトへの取り込みです。逆に、サイトの記事を公開したときに Bluesky へ投稿したいときは、[EmDash To Bluesky](https://github.com/RieTamura/EmDash-To-Bluesky) を足します。タイトル、リンク、アイキャッチ画像のカードを 1 回だけ投稿します。
+
+このテーマには入っていません。無料プランで使うときは、GitHub から入れます。
+
+```sh
+npm install github:RieTamura/EmDash-To-Bluesky
+```
+
+`astro.config.mjs` の `plugins` に足して、デプロイします。
+
+```js
+import blueskyShare from "bluesky-share";
+
+// ...
+plugins: [blueskyFeed, rssFeed, siteLikes, postLayout, blueskyShare],
+```
+
+設定には、`EMDASH_ENCRYPTION_KEY` と Bluesky のアプリパスワードが必要です。手順はプラグインの [README](https://github.com/RieTamura/EmDash-To-Bluesky/blob/main/README_JA.md) にあります。
+
+Bluesky To EmDash も使っていると、自動投稿した内容はサイトの Bluesky のタブにも出ます。
+
 ## 表示を速くする
 
 訪問者が少ないサイトでは、キャッシュのないページを表示する機会が増えます。データベースと Worker の場所が離れていると、遅くなります。

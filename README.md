@@ -98,6 +98,29 @@ Open each plugin's settings under **Plugins** in the admin.
 
 RSS can read YouTube, note, Zenn and Hatena Blog only. New items can take up to about 20 minutes to reach the home page.
 
+## Post articles to Bluesky automatically (optional)
+
+Bluesky To EmDash, above, brings posts from Bluesky to your site. To go the other way and post to Bluesky when you publish an article, add [EmDash To Bluesky](https://github.com/RieTamura/EmDash-To-Bluesky). It posts the title, link and a card with the featured image, once.
+
+This theme doesn't include it. On the free plan, install it from GitHub:
+
+```sh
+npm install github:RieTamura/EmDash-To-Bluesky
+```
+
+Add it to `plugins` in `astro.config.mjs` and deploy:
+
+```js
+import blueskyShare from "bluesky-share";
+
+// ...
+plugins: [blueskyFeed, rssFeed, siteLikes, postLayout, blueskyShare],
+```
+
+It needs `EMDASH_ENCRYPTION_KEY` and a Bluesky app password. The plugin's [README](https://github.com/RieTamura/EmDash-To-Bluesky) has the steps.
+
+If you also use Bluesky To EmDash, the posts it makes appear in your site's Bluesky tab too.
+
 ## Make it faster
 
 On a site with few visitors, more page views miss the cache. They're slower when the Worker runs far from the database.
