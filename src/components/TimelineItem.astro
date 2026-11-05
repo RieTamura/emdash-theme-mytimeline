@@ -1,0 +1,825 @@
+---
+import { Image } from "emdash/ui";
+import Avatar from "./Avatar.astro";
+import Badge from "./Badge.astro";
+import BlueskyLikes from "./BlueskyLikes.astro";
+import LikeButton from "./LikeButton.astro";
+import ShareButtons from "./ShareButtons.astro";
+import type { TimelineEntry } from "../utils/timeline";
+import { formatDate, formatTime, getLang, ui } from "../utils/i18n";
+
+/**
+ * A timeline row.
+ *
+ * full: avatar with a thread line, date/badge (no name: it's all one
+ *   person's site), title, excerpt,
+ *   image, and the read-more / like / share / copy actions.
+ * compact: the whole row is one link -- avatar, a meta line, and the
+ *   title. Used for "前後の投稿" under an article.
+ *
+ * Bluesky posts have no title: the full row shows the post text with its
+ * links, images and link card, and points to bsky.app.
+ * Feed items (rss-feed plugin) point to where they were published:
+ * YouTube videos show the YouTube logo, the title and the thumbnail;
+ * posts on note, Zenn or Hatena Blog show a page icon, the service name,
+ * the title, the start of the text and the eyecatch.
+ * bubble: a Bluesky post as a small speech bubble -- time of day, the
+ *   text cut to a few lines, and thumbnails. Used on すべて, under a day
+ *   label, after that day's posts and works.
+ */
+interface Props {
+	entry: TimelineEntry;
+	author: { name: string; photo?: string | null };
+	variant?: "full" | "compact" | "bubble";
+	/** compact only: what this row is, e.g. "新しい投稿" */
+	label?: string;
+	headingLevel?: 2 | 3;
+	/** Load the image eagerly; use for the first row above the fold. */
+	priority?: boolean;
+}
+
+const {
+	entry,
+	author,
+	variant = "full",
+	label,
+	headingLevel = 2,
+	priority = false,
+} = Astro.props;
+
+const lang = getLang(Astro);
+const t = ui[lang];
+const Heading = `h${headingLevel}` as const;
+const date = entry.date ? formatDate(entry.date, lang) : null;
+// A Japanese entry on an English page: let screen readers switch voices.
+const contentLang = entry.contentLang ?? undefined;
+const titleId = `tl-${entry.key.replace(/[^\w-]/g, "-")}`;
+const bluesky = entry.bluesky;
+const cardHost = bluesky?.linkCard ? hostOf(bluesky.linkCard.url) : null;
+// The bubble is one link, so its text can't hold the post's own links.
+const plainText = bluesky?.segments.map((segment) => segment.text).join("").trim() ?? "";
+const feed = entry.feed;
+const serviceName = feed ? serviceNameOf(feed.source, entry.href) : "";
+const blueskyIcon =
+	"M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.206-.659-.298-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8Z";
+
+/** The service a feed item came from, as visitors know it. */
+function serviceNameOf(source: string, url: string): string {
+	const names: Record<string, string> = {
+		youtube: "YouTube",
+		note: "note",
+		zenn: "Zenn",
+		hatena: t.hatenaBlog,
+	};
+	return names[source] ?? hostOf(url) ?? source;
+}
+
+function hostOf(url: string): string | null {
+	try {
+		return new URL(url).hostname.replace(/^www\./, "");
+	} catch {
+		return null;
+	}
+}
+---
+
+{
+	variant === "compact" ? (
+		<a href={entry.href} class="tl-compact">
+			<Avatar name={author.name} photo={author.photo} size={40} />
+			<span class="tl-compact__body">
+				<span class="tl-compact__meta">
+					{[label, date].filter(Boolean).join(t.listSeparator)}
+				</span>
+				<span class="tl-compact__title" lang={contentLang}>
+					{entry.title}
+				</span>
+			</span>
+		</a>
+	) : variant === "bubble" && bluesky ? (
+		<article class="tl-bubble" aria-labelledby={titleId}>
+			<div class="tl-bubble__rail">
+				<span class="bsky-logo bsky-logo--sm" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="currentColor">
+						<path d={blueskyIcon} />
+					</svg>
+				</span>
+				<span class="tl-item__thread" aria-hidden="true" />
+			</div>
+			<div class="tl-bubble__box">
+				<a href={entry.href} class="tl-bubble__link" rel="noopener">
+					<span class="tl-bubble__meta">
+						Bluesky
+						{/* Bubbles sit under a day label, so the time of day is enough */}
+						{entry.date && (
+							<span>
+								・<time datetime={entry.date.toISOString()}>{formatTime(entry.date, lang)}</time>
+							</span>
+						)}
+					</span>
+					<span class="tl-bubble__text" id={titleId} lang={contentLang}>
+						{plainText || bluesky.linkCard?.title || t.blueskyPost}
+					</span>
+					{bluesky.images.length > 0 && (
+						<span class="tl-bubble__thumbs">
+							{bluesky.images.slice(0, 4).map((image) => (
+								<img src={image.thumb} alt={image.alt} loading="lazy" decoding="async" />
+							))}
+						</span>
+					)}
+				</a>
+				<div class="tl-bubble__footer">
+					<LikeButton {...entry.likeTarget} title={entry.title} variant="small" />
+					{bluesky.uri && <BlueskyLikes uri={bluesky.uri} />}
+				</div>
+			</div>
+		</article>
+	) : feed ? (
+		<article class="tl-item" aria-labelledby={titleId}>
+			<div class="tl-item__rail">
+				{feed.kind === "video" ? (
+					<span class="yt-logo" aria-hidden="true">
+						<svg viewBox="0 0 24 24">
+							<rect x="1" y="4.5" width="22" height="15" rx="4.5" fill="currentColor" />
+							<path d="M10 8.75v6.5L15.5 12Z" fill="#fff" />
+						</svg>
+					</span>
+				) : (
+					<span class="feed-icon" aria-hidden="true">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M7 3.5h7l4.5 4.5v12.5h-11.5Z" />
+							<path d="M14 3.5V8h4.5M9.5 12.5h6M9.5 16h6" />
+						</svg>
+					</span>
+				)}
+				<span class="tl-item__thread" aria-hidden="true" />
+			</div>
+			<div class="tl-item__body">
+				<div class="tl-item__meta">
+					<span class="tl-item__source">{serviceName}</span>
+					{date && entry.date && (
+						<span class="tl-item__date">
+							・<time datetime={entry.date.toISOString()}>{date}</time>
+						</span>
+					)}
+				</div>
+				<a href={entry.href} class="tl-item__link" rel="noopener" lang={contentLang}>
+					<Heading class="tl-item__title" id={titleId}>
+						{entry.title}
+					</Heading>
+					{entry.excerpt && <p class="tl-item__excerpt tl-item__excerpt--clamp">{entry.excerpt}</p>}
+					{feed.thumbnail && (
+						<div class:list={["tl-item__feed-thumb", `tl-item__feed-thumb--${feed.kind}`]}>
+							<img
+								src={feed.thumbnail}
+								alt=""
+								loading={priority ? "eager" : "lazy"}
+								decoding="async"
+							/>
+							{feed.kind === "video" && (
+								<span class="tl-item__play" aria-hidden="true">
+									<svg viewBox="0 0 24 24" fill="currentColor">
+										<path d="M8 5.5v13L18.5 12Z" />
+									</svg>
+								</span>
+							)}
+						</div>
+					)}
+				</a>
+				<div class="tl-item__actions">
+					<a href={entry.href} class="tl-item__more" rel="noopener">
+						{feed.kind === "video" ? t.watchOnYouTube : t.readOn(serviceName)}
+					</a>
+					<LikeButton {...entry.likeTarget} title={entry.title} />
+				</div>
+			</div>
+		</article>
+	) : bluesky ? (
+		<article class="tl-item" aria-labelledby={titleId}>
+			<div class="tl-item__rail">
+				<span class="bsky-logo" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="currentColor">
+						<path d={blueskyIcon} />
+					</svg>
+				</span>
+				<span class="tl-item__thread" aria-hidden="true" />
+			</div>
+			<div class="tl-item__body">
+				<div class="tl-item__meta">
+					<span class="tl-item__source">Bluesky</span>
+					{date && entry.date && (
+						<span class="tl-item__date">
+							・<time datetime={entry.date.toISOString()}>{date}</time>
+						</span>
+					)}
+				</div>
+				<p class="tl-item__text" id={titleId} lang={contentLang}>
+					{bluesky.segments.map((segment) =>
+						segment.href ? (
+							<a href={segment.href} rel="noopener">
+								{segment.text}
+							</a>
+						) : (
+							segment.text
+						),
+					)}
+				</p>
+				{bluesky.images.length > 0 && (
+					<a
+						href={entry.href}
+						rel="noopener"
+						class:list={[
+							"tl-item__gallery",
+							`tl-item__gallery--${Math.min(bluesky.images.length, 4)}`,
+						]}
+					>
+						{bluesky.images.slice(0, 4).map((image) => (
+							<img
+								src={image.thumb}
+								alt={image.alt}
+								width={image.width ?? undefined}
+								height={image.height ?? undefined}
+								loading={priority ? "eager" : "lazy"}
+								decoding="async"
+							/>
+						))}
+					</a>
+				)}
+				{bluesky.linkCard && (
+					<a href={bluesky.linkCard.url} class="tl-item__card" rel="noopener">
+						{bluesky.linkCard.thumb && (
+							<img
+								src={bluesky.linkCard.thumb}
+								alt=""
+								class="tl-item__card-thumb"
+								loading="lazy"
+								decoding="async"
+							/>
+						)}
+						<span class="tl-item__card-body">
+							{cardHost && <span class="tl-item__card-host">{cardHost}</span>}
+							<span class="tl-item__card-title">
+								{bluesky.linkCard.title || bluesky.linkCard.url}
+							</span>
+							{bluesky.linkCard.description && (
+								<span class="tl-item__card-desc">{bluesky.linkCard.description}</span>
+							)}
+						</span>
+					</a>
+				)}
+				<div class="tl-item__actions">
+					<a href={entry.href} class="tl-item__more" rel="noopener">
+						{t.viewOnBluesky}
+					</a>
+					<LikeButton {...entry.likeTarget} title={entry.title} />
+					{bluesky.uri && <BlueskyLikes uri={bluesky.uri} />}
+				</div>
+			</div>
+		</article>
+	) : (
+		<article class="tl-item" aria-labelledby={titleId}>
+			<div class="tl-item__rail">
+				<Avatar name={author.name} photo={author.photo} size={44} />
+				<span class="tl-item__thread" aria-hidden="true" />
+			</div>
+			<div class="tl-item__body">
+				<div class="tl-item__meta">
+					{date && entry.date && (
+						<span class="tl-item__date">
+							<time datetime={entry.date.toISOString()}>{date}</time>
+						</span>
+					)}
+					{entry.badge && <Badge tone={entry.badge.tone}>{entry.badge.label}</Badge>}
+				</div>
+				<a href={entry.href} class="tl-item__link" lang={contentLang}>
+					<Heading class="tl-item__title" id={titleId} {...entry.edit.title}>
+						{entry.title}
+					</Heading>
+					{entry.excerpt && (
+						<p
+							class="tl-item__excerpt"
+							{...(entry.excerptField ? entry.edit[entry.excerptField] : {})}
+						>
+							{entry.excerpt}
+						</p>
+					)}
+					{entry.hashtags.length > 0 && (
+						<p class="tl-item__hashtags">
+							{entry.hashtags.map((name) => (
+								<span>#{name}</span>
+							))}
+						</p>
+					)}
+					{entry.image && (
+						<div class="tl-item__media">
+							<Image
+								image={entry.image}
+								sizes="(min-width: 760px) 600px, 90vw"
+								priority={priority}
+							/>
+						</div>
+					)}
+				</a>
+				<div class="tl-item__actions">
+					<a href={entry.href} class="tl-item__more">
+						{t.readMore}<span class="sr-only">{lang === "en" ? ": " : "："}{entry.title}</span>
+					</a>
+					<LikeButton {...entry.likeTarget} title={entry.title} />
+					<ShareButtons href={entry.href} title={entry.title} />
+				</div>
+			</div>
+		</article>
+	)
+}
+
+<style>
+	.tl-item {
+		display: flex;
+		gap: 14px;
+		padding: 16px 24px 0;
+	}
+
+	.tl-item__rail {
+		display: flex;
+		flex: none;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.tl-item__thread {
+		flex: 1 1 auto;
+		width: 2px;
+		margin-top: 6px;
+		border-radius: 2px;
+		background: var(--color-border);
+	}
+
+	.tl-item__body {
+		flex: 1 1 auto;
+		min-width: 0;
+		padding-bottom: 16px;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.tl-item__meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		font-size: 14px;
+	}
+
+	.tl-item__date {
+		color: var(--color-muted);
+	}
+
+	.tl-item__link {
+		display: block;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.tl-item__link:hover .tl-item__title {
+		color: var(--color-brand);
+	}
+
+	.tl-item__title {
+		margin-top: 6px;
+		font-size: 19px;
+		line-height: 1.5;
+		transition: color var(--transition-fast);
+	}
+
+	.tl-item__excerpt {
+		margin-top: 4px;
+		color: var(--color-text-secondary);
+		font-size: 15px;
+	}
+
+	.tl-item__hashtags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2px 12px;
+		margin-top: 4px;
+		color: var(--color-brand);
+		font-size: 15px;
+	}
+
+	/* Same shape as a 1200×630 thumbnail, so its title and date are not cut off. */
+	.tl-item__media {
+		aspect-ratio: 1200 / 630;
+		margin-top: 12px;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-fill);
+	}
+
+	.tl-item__media :global(img) {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.tl-item__source {
+		font-weight: 700;
+	}
+
+	/*
+	 * Bluesky rows show the Bluesky logo where posts show the site's avatar.
+	 * The butterfly keeps Bluesky's own blue: it is their mark, not a
+	 * colour of this site.
+	 */
+	.bsky-logo {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		border: 1px solid var(--color-border);
+		border-radius: 50%;
+		background: var(--color-surface);
+		color: #1185fe;
+	}
+
+	.bsky-logo svg {
+		width: 24px;
+		height: 24px;
+	}
+
+	.bsky-logo--sm {
+		width: 32px;
+		height: 32px;
+	}
+
+	.bsky-logo--sm svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	/* Video rows: YouTube's own red, as the Bluesky butterfly keeps its blue */
+	.yt-logo {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		border: 1px solid var(--color-border);
+		border-radius: 50%;
+		background: var(--color-surface);
+		color: #ff0000;
+	}
+
+	.yt-logo svg {
+		width: 26px;
+		height: 26px;
+	}
+
+	/* Posts on note, Zenn and Hatena Blog: a plain page icon in the site's colours */
+	.feed-icon {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		border: 1px solid var(--color-border);
+		border-radius: 50%;
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+	}
+
+	.feed-icon svg {
+		width: 22px;
+		height: 22px;
+	}
+
+	.tl-item__excerpt--clamp {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+	}
+
+	.tl-item__feed-thumb {
+		position: relative;
+		margin-top: 12px;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-fill);
+	}
+
+	/* YouTube's hqdefault thumbnails are 4:3 with bars; crop them to 16:9 */
+	.tl-item__feed-thumb--video {
+		aspect-ratio: 16 / 9;
+	}
+
+	/* Eyecatches are mostly OGP images (1.91:1); show them whole, as link cards do */
+	.tl-item__feed-thumb--article {
+		aspect-ratio: 1.91 / 1;
+		border: 1px solid var(--color-border);
+	}
+
+	.tl-item__feed-thumb img {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	/* Hide the last pixel of the bars left by rounding */
+	.tl-item__feed-thumb--video img {
+		scale: 1.04;
+	}
+
+	.tl-item__play {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: auto;
+		width: 56px;
+		height: 56px;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.55);
+		color: #fff;
+		transition: background-color var(--transition-fast);
+	}
+
+	.tl-item__play svg {
+		width: 28px;
+		height: 28px;
+	}
+
+	.tl-item__link:hover .tl-item__play {
+		background: rgb(0 0 0 / 0.75);
+	}
+
+	.tl-item__text {
+		margin-top: 6px;
+		font-size: 16px;
+		line-height: 1.75;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.tl-item__text a {
+		color: var(--color-brand);
+	}
+
+	.tl-item__gallery {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-auto-rows: 1fr;
+		gap: 4px;
+		height: 240px;
+		margin-top: 12px;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-fill);
+	}
+
+	.tl-item__gallery img {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		min-height: 0;
+		object-fit: cover;
+	}
+
+	.tl-item__gallery--1 {
+		grid-template-columns: 1fr;
+	}
+
+	.tl-item__gallery--3 img:first-child {
+		grid-row: span 2;
+	}
+
+	.tl-item__card {
+		display: flex;
+		flex-direction: column;
+		margin-top: 12px;
+		overflow: hidden;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		color: var(--color-text);
+		text-decoration: none;
+		transition: background-color var(--transition-fast);
+	}
+
+	.tl-item__card:hover {
+		background: var(--color-fill);
+	}
+
+	/* OGP images are 1.91:1; show them whole, as Bluesky does. */
+	.tl-item__card-thumb {
+		width: 100%;
+		max-width: none;
+		height: auto;
+		aspect-ratio: 1.91 / 1;
+		object-fit: cover;
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-fill);
+	}
+
+	.tl-item__card-body {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		padding: 10px 14px;
+	}
+
+	.tl-item__card-host {
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	.tl-item__card-title {
+		font-size: 15px;
+		font-weight: 700;
+		line-height: 1.5;
+	}
+
+	.tl-item__card-desc {
+		display: -webkit-box;
+		overflow: hidden;
+		color: var(--color-text-secondary);
+		font-size: 13px;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+
+	.tl-item__actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 8px;
+		margin-inline-start: -10px;
+		color: var(--color-muted);
+	}
+
+	.tl-item__more {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 10px;
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	/* Bluesky bubble: smaller than a full row, with a tail pointing at the avatar */
+	.tl-bubble {
+		display: flex;
+		gap: 14px;
+		padding: 12px 24px 0;
+	}
+
+	.tl-bubble__rail {
+		display: flex;
+		flex: none;
+		flex-direction: column;
+		align-items: center;
+		width: 44px;
+	}
+
+	.tl-bubble__box {
+		position: relative;
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-width: 0;
+		margin-bottom: 12px;
+		padding: 10px 14px 4px;
+		border-radius: 4px 18px 18px 18px;
+		background: var(--color-fill);
+		transition: background-color var(--transition-fast);
+	}
+
+	.tl-bubble__link {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	/* Heart and Bluesky's own count, outside the link */
+	.tl-bubble__footer {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin-inline-start: -8px;
+	}
+
+	.tl-bubble__box::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: -8px;
+		border-top: 10px solid var(--color-fill);
+		border-left: 8px solid transparent;
+		transition: border-color var(--transition-fast);
+	}
+
+	.tl-bubble__box:hover {
+		background: var(--color-border-subtle);
+	}
+
+	.tl-bubble__box:hover::before {
+		border-top-color: var(--color-border-subtle);
+	}
+
+	.tl-bubble__meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px;
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+
+	.tl-bubble__text {
+		display: -webkit-box;
+		overflow: hidden;
+		font-size: 14px;
+		line-height: 1.7;
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 4;
+	}
+
+	.tl-bubble__thumbs {
+		display: flex;
+		gap: 4px;
+		margin-top: 4px;
+	}
+
+	.tl-bubble__thumbs img {
+		width: 56px;
+		height: 56px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+		background: var(--color-surface);
+	}
+
+	.tl-compact {
+		display: flex;
+		gap: 14px;
+		padding: 14px 28px;
+		border-bottom: 1px solid var(--color-border-subtle);
+		color: var(--color-text);
+		text-decoration: none;
+		transition: background-color var(--transition-fast);
+	}
+
+	.tl-compact:hover {
+		background: var(--color-fill);
+	}
+
+	.tl-compact__body {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.tl-compact__meta {
+		font-size: 13px;
+		color: var(--color-muted);
+	}
+
+	.tl-compact__title {
+		margin-top: 2px;
+		font-size: 17px;
+		font-weight: 700;
+	}
+
+	@media (max-width: 560px) {
+		.tl-item,
+		.tl-bubble {
+			padding-inline: 16px;
+		}
+
+		.tl-item__gallery {
+			height: 200px;
+		}
+
+		.tl-compact {
+			padding-inline: 20px;
+		}
+	}
+</style>

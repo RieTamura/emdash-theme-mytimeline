@@ -1,0 +1,13 @@
+---
+import TermFeed from "../../components/TermFeed.astro";
+import { getLang, localizePath } from "../../utils/i18n";
+import { findTerm } from "../../utils/timeline";
+
+const lang = getLang(Astro);
+const { term, cacheHint } = await findTerm("category", Astro.params.slug, lang);
+if (!term) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+---
+
+<TermFeed taxonomy="category" term={term} termsCacheHint={cacheHint} />

@@ -1,0 +1,100 @@
+---
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { entryLanguages } from "../../utils/timeline";
+import { getLang, localizePath, ui } from "../../utils/i18n";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const lang = getLang(Astro);
+const t = ui[lang];
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+// English pages fall back to the Japanese page when there's no English one.
+const { entry: page, cacheHint, fallbackLocale } = await getEmDashEntry("pages", slug, {
+	locale: lang,
+});
+
+if (!page) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const { alternates, contentLangs, contentLang, canonicalPath } = await entryLanguages(
+	"pages",
+	page,
+	lang,
+	fallbackLocale,
+);
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: canonicalPath,
+});
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "pages", id: page.data.id, slug }}
+	alternates={alternates}
+	contentLangs={contentLangs}
+>
+	<div class="card-bar">
+		<a href={localizePath("/", lang)} class="icon-btn" aria-label={t.backToTimeline}>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg
+			>
+		</a>
+		<Breadcrumbs items={[{ label: page.data.title }]} />
+	</div>
+
+	<article class="page">
+		{contentLang && <p class="lang-notice">{t.onlyInJapanese}</p>}
+		<h1 class="page__title" lang={contentLang} {...page.edit.title}>{page.data.title}</h1>
+		<div class="prose page__body" lang={contentLang} {...page.edit.content}>
+			<PortableText value={page.data.content} />
+		</div>
+	</article>
+</Base>
+
+<style>
+	.page {
+		padding: 24px 28px 36px;
+	}
+
+	.page__title {
+		font-size: 32px;
+		line-height: 1.45;
+	}
+
+	.page__body {
+		margin-top: 24px;
+	}
+
+	@media (max-width: 560px) {
+		.page {
+			padding-inline: 20px;
+		}
+
+		.page__title {
+			font-size: 26px;
+		}
+	}
+</style>

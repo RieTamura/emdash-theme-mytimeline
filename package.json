@@ -1,0 +1,42 @@
+{
+  "name": "emdash-theme-mytimeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "emdash": {
+    "label": "MyTimeline",
+    "seed": "seed/seed.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.3.1",
+    "@astrojs/react": "^7.0.0",
+    "@emdash-cms/cloudflare": "^1.4.0",
+    "astro": "^7.3.2",
+    "bluesky-feed": "github:RieTamura/Bluesky-To-EmDash",
+    "emdash": "^1.4.0",
+    "post-layout": "file:plugins/post-layout",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "rss-feed": "github:RieTamura/RSSFeed-To-EmDash",
+    "site-likes": "file:plugins/site-likes"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^5.20260820.1",
+    "wrangler": "^4.125.0"
+  },
+  "description": "A timeline-style EmDash theme for Cloudflare: blog posts, your works, Bluesky and RSS in one feed.",
+  "license": "MIT",
+  "author": "Rie Tamura",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RieTamura/emdash-theme-mytimeline.git"
+  }
+}

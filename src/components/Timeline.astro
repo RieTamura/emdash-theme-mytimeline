@@ -1,0 +1,179 @@
+---
+import TimelineItem from "./TimelineItem.astro";
+import type { TimelineDay, TimelineEntry } from "../utils/timeline";
+import { formatDate, getLang, localizePath, monthLabel, ui } from "../utils/i18n";
+
+/**
+ * A list of timeline rows with a month label wherever the month changes,
+ * plus "older / newer" links for ?page= pagination.
+ *
+ * Given `days` (on すべて), rows are grouped under a label per day
+ * instead, Bluesky posts show as small bubbles, and a day with more
+ * Bluesky posts than fit links to the Bluesky tab.
+ */
+interface Props {
+	entries: TimelineEntry[];
+	author: { name: string; photo?: string | null };
+	basePath: string;
+	page: number;
+	hasMore: boolean;
+	headingLevel?: 2 | 3;
+	emptyTitle?: string;
+	emptyText?: string;
+	/** すべて only: the entries grouped by day */
+	days?: TimelineDay[] | null;
+}
+
+const lang = getLang(Astro);
+const t = ui[lang];
+
+const {
+	entries,
+	author,
+	basePath,
+	page,
+	hasMore,
+	headingLevel = 2,
+	emptyTitle = t.emptyAll,
+	emptyText = t.emptyText,
+	days = null,
+} = Astro.props;
+
+const pageHref = (n: number) => (n <= 1 ? basePath : `${basePath}?page=${n}`);
+
+interface Group {
+	label: string | null;
+	entries: TimelineEntry[];
+	moreBluesky: number;
+}
+
+const groups: Group[] = days
+	? days.map((day) => ({
+			label: formatDate(day.date, lang),
+			entries: day.entries,
+			moreBluesky: day.moreBluesky,
+		}))
+	: entries.reduce<Group[]>((list, entry) => {
+			const label = entry.date ? monthLabel(entry.date, lang) : null;
+			const last = list.at(-1);
+			if (last && (label === null || last.label === label)) last.entries.push(entry);
+			else list.push({ label, entries: [entry], moreBluesky: 0 });
+			return list;
+		}, []);
+const firstKey = entries[0]?.key;
+---
+
+<div class="timeline">
+	{
+		entries.length === 0 ? (
+			<div class="empty-state">
+				<p class="empty-state__title">
+					{page > 1 ? t.noOlder : emptyTitle}
+				</p>
+				<p class="empty-state__text">{page > 1 ? t.reachedEnd : emptyText}</p>
+				{page > 1 && (
+					<div class="empty-state__actions">
+						<a href={basePath} class="pill-btn pill-btn--soft">
+							{t.backToLatest}
+						</a>
+					</div>
+				)}
+			</div>
+		) : (
+			groups.map((group) => (
+				<>
+					{group.label && (
+						<div class="timeline__month">
+							<span class="timeline__month-label">{group.label}</span>
+							<span class="timeline__month-rule" aria-hidden="true" />
+						</div>
+					)}
+					{group.entries.map((entry) => (
+						<TimelineItem
+							entry={entry}
+							author={author}
+							headingLevel={headingLevel}
+							priority={entry.key === firstKey && page === 1}
+							variant={days && entry.kind === "bluesky" ? "bubble" : "full"}
+						/>
+					))}
+					{group.moreBluesky > 0 && (
+						<div class="timeline__more">
+							<a href={localizePath("/bluesky", lang)} class="pill-btn pill-btn--soft">
+								{t.moreOnBluesky(group.moreBluesky)}
+							</a>
+						</div>
+					)}
+				</>
+			))
+		)
+	}
+
+	{
+		entries.length > 0 && (page > 1 || hasMore) && (
+			<nav class="timeline__pager" aria-label={t.pagination}>
+				{page > 1 && (
+					<a href={pageHref(page - 1)} class="pill-btn pill-btn--ghost">
+						{t.newerPosts}
+					</a>
+				)}
+				{hasMore && (
+					<a href={pageHref(page + 1)} class="pill-btn pill-btn--soft">
+						{t.olderPosts}
+					</a>
+				)}
+			</nav>
+		)
+	}
+</div>
+
+<style>
+	.timeline {
+		padding: 8px 0 24px;
+	}
+
+	.timeline__month {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 20px 24px 4px;
+	}
+
+	.timeline__month-label {
+		padding: 4px 14px;
+		border-radius: var(--radius-full);
+		background: var(--color-ink);
+		color: var(--color-on-ink);
+		font-size: 13px;
+		font-weight: 700;
+	}
+
+	.timeline__month-rule {
+		flex: 1 1 auto;
+		height: 1px;
+		background: var(--color-border);
+	}
+
+	/* Lines up with the bubbles: rail width (44px) + gap (14px) */
+	.timeline__more {
+		padding: 0 24px 12px calc(24px + 58px);
+	}
+
+	.timeline__pager {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 12px;
+		padding: 24px;
+	}
+
+	@media (max-width: 560px) {
+		.timeline__month {
+			padding-inline: 16px;
+		}
+
+		.timeline__more {
+			padding-inline: calc(16px + 58px) 16px;
+		}
+	}
+</style>

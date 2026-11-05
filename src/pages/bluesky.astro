@@ -1,0 +1,17 @@
+---
+import { getEmDashCollection } from "emdash";
+import FeedPage from "../components/FeedPage.astro";
+import { getLang, localizePath } from "../utils/i18n";
+
+// Bluesky is off until the plugin has imported something: no posts, no page.
+const { entries, cacheHint, error } = await getEmDashCollection("bluesky", {
+	locale: "ja",
+	limit: 1,
+});
+if (Astro.cache?.enabled && !error) Astro.cache.set(cacheHint);
+if (error || entries.length === 0) {
+	return Astro.rewrite(localizePath("/404", getLang(Astro)));
+}
+---
+
+<FeedPage type="bluesky" />

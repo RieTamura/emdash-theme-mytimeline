@@ -1,0 +1,82 @@
+/*
+  theme.css -- your theme overrides. This is the file to edit to
+  retheme the site.
+
+  Every design token lives in src/styles/tokens.css (colors, type
+  scale, spacing, layout, shadows) with its default value. Override any
+  of them here: declarations in this file are unlayered, so they always
+  beat the @layer base defaults in tokens.css.
+
+  Colors are defined with light-dark(). Overriding with a plain color
+  changes light and dark mode at once; use light-dark(<light>, <dark>)
+  to set different values per mode.
+
+  Webfonts are loaded in astro.config.mjs (--font-body, --font-mono).
+
+  This theme: "やわらか" -- Zen Maru Gothic, soft sky blue (the logo's hue) and mint, big
+  rounded corners, an SNS-style profile + timeline layout.
+*/
+
+:root {
+	--color-bg: light-dark(#f3fcfe, #151b1d);
+	--color-surface: light-dark(#ffffff, #1e2628);
+	--color-fill: light-dark(#ecf9fc, #293538);
+	--color-fill-strong: light-dark(#d5f1f7, #324347);
+	--color-text: light-dark(#273538, #e1eef1);
+	--color-text-secondary: light-dark(#3f555a, #b4c6ca);
+	--color-muted: light-dark(#5f7276, #8ca0a4);
+	--color-border: light-dark(#d5e9ee, #293538);
+	--color-border-subtle: light-dark(#e2f1f4, #232b2d);
+	--color-border-strong: light-dark(#c4dee5, #324347);
+	--color-brand: light-dark(#007688, #40c3dc);
+	--color-brand-hover: light-dark(#006b7c, #7ad1e4);
+	--color-on-brand: light-dark(#ffffff, #151b1d);
+
+	/* Theme colours that tokens.css doesn't have */
+	--color-accent: #00adc7; /* avatar circles, active tab, heading dots */
+	--color-on-accent: #151b1d;
+	--color-ink: light-dark(#273538, #e1eef1); /* month labels, the works badge */
+	--color-on-ink: light-dark(#ffffff, #151b1d);
+	--color-cover: light-dark(#d5f1f7, #223337);
+	--color-cover-dot-1: light-dark(#b6e5f0, #2a4146);
+	--color-cover-dot-2: light-dark(#dcefe5, #24372e);
+	--color-photo: light-dark(#b6e5f0, #2a4146); /* empty profile photo */
+
+	/* Category badges: background / text, plus the soft sidebar row */
+	--color-cat-mint-bg: light-dark(#dcefe5, #24372e);
+	--color-cat-mint-text: light-dark(#2f5a43, #bfe3cf);
+	--color-cat-mint-soft: light-dark(#f3faf6, #24302a);
+	--color-cat-mint-count: light-dark(#4d6b5b, #bfe3cf);
+	--color-cat-peach-bg: light-dark(#d5f1f7, #163c44);
+	--color-cat-peach-text: light-dark(#006170, #9fdbe8);
+	--color-cat-peach-soft: light-dark(#ecf9fc, #1e3236);
+	--color-cat-peach-count: light-dark(#006170, #9fdbe8);
+	--color-cat-butter-bg: light-dark(#f6ebc8, #3f3620);
+	--color-cat-butter-text: light-dark(#6b5414, #ebd9a0);
+	--color-cat-butter-soft: light-dark(#fcf7e6, #332d1d);
+	--color-cat-butter-count: light-dark(#6b5414, #ebd9a0);
+
+	--font-heading: var(--font-body);
+	--font-weight-heading: 700;
+	--font-weight-display: 700;
+
+	/* A rounded Japanese face reads best untracked and with air between lines */
+	--tracking-tight: 0;
+	--tracking-snug: 0;
+	--leading-tight: 1.4;
+	--leading-snug: 1.5;
+	--leading-normal: 1.7;
+	--leading-relaxed: 2;
+
+	--radius-lg: 18px;
+	--radius-xl: 28px;
+	--radius-card: 24px; /* sidebar cards */
+
+	--shadow-card: 0 8px 24px -14px rgba(0, 104, 121, 0.25);
+	--shadow-card-hover: 0 12px 28px -14px rgba(0, 104, 121, 0.35);
+	--shadow-lg: 0 16px 40px -12px rgba(0, 104, 121, 0.3);
+
+	--layout-width: 1080px; /* main column + sidebar */
+	--main-width: 720px;
+	--content-width: 100%; /* the article body fills the main card */
+}

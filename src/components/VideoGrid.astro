@@ -1,0 +1,124 @@
+---
+import type { TimelineEntry } from "../utils/timeline";
+import { formatDate, getLang, ui } from "../utils/i18n";
+
+/**
+ * Videos (rss-feed plugin) as a grid of thumbnails, each linking to
+ * YouTube. Not on any page yet: put it inside a page's main card, with
+ * entries from loadVideos() mapped through feedItemToEntry(), and pass the
+ * loader's cache hints to the page.
+ */
+interface Props {
+	entries: TimelineEntry[];
+	/** Heading above the grid; leave out for none */
+	heading?: string;
+}
+
+const { entries, heading } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+---
+
+{
+	entries.length > 0 && (
+		<section class="video-grid" aria-label={heading ?? t.videos}>
+			{heading && <h2 class="video-grid__heading">{heading}</h2>}
+			<ul class="video-grid__list">
+				{entries.map((entry) => (
+					<li>
+						<a href={entry.href} class="video-grid__item" rel="noopener" lang={entry.contentLang ?? undefined}>
+							<span class="video-grid__thumb">
+								{entry.feed?.thumbnail && (
+									<img src={entry.feed.thumbnail} alt="" loading="lazy" decoding="async" />
+								)}
+							</span>
+							<span class="video-grid__title">{entry.title}</span>
+							{entry.date && (
+								<time class="video-grid__date" datetime={entry.date.toISOString()}>
+									{formatDate(entry.date, lang)}
+								</time>
+							)}
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	)
+}
+
+<style>
+	.video-grid {
+		padding: 16px 24px 24px;
+	}
+
+	.video-grid__heading {
+		margin-bottom: 12px;
+		font-size: 19px;
+	}
+
+	.video-grid__list {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: 20px 16px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.video-grid__item {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	/* YouTube's hqdefault thumbnails are 4:3 with bars; crop them to 16:9 */
+	.video-grid__thumb {
+		display: block;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-fill);
+		aspect-ratio: 16 / 9;
+	}
+
+	.video-grid__thumb img {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		object-fit: cover;
+		/* Hide the last pixel of the bars left by rounding */
+		scale: 1.04;
+		transition: transform var(--transition-fast);
+	}
+
+	.video-grid__item:hover .video-grid__thumb img {
+		transform: scale(1.03);
+	}
+
+	.video-grid__title {
+		display: -webkit-box;
+		overflow: hidden;
+		font-size: 15px;
+		font-weight: 700;
+		line-height: 1.5;
+		transition: color var(--transition-fast);
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+
+	.video-grid__item:hover .video-grid__title {
+		color: var(--color-brand);
+	}
+
+	.video-grid__date {
+		color: var(--color-muted);
+		font-size: 13px;
+	}
+
+	@media (max-width: 560px) {
+		.video-grid {
+			padding-inline: 16px;
+		}
+	}
+</style>

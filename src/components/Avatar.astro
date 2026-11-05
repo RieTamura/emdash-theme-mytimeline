@@ -1,0 +1,63 @@
+---
+import { resizedImageSrc } from "../utils/resized-image";
+
+/**
+ * The site owner's round avatar: the site logo when one is set in
+ * Settings, otherwise the first letter of the site title on the accent.
+ * Always decorative -- the name is printed next to it.
+ */
+interface Props {
+	name: string;
+	photo?: string | null;
+	size?: number;
+	class?: string;
+}
+
+const { name, photo, size = 44, class: className } = Astro.props;
+const photoSrc = photo ? await resizedImageSrc(photo, size, Astro.url.origin) : null;
+const monogram = [...name.trim()][0]?.toUpperCase() ?? "";
+---
+
+{
+	photoSrc ? (
+		<img
+			src={photoSrc}
+			alt=""
+			width={size}
+			height={size}
+			class:list={["avatar", className]}
+			style={`--size: ${size}px`}
+			loading="lazy"
+			decoding="async"
+		/>
+	) : (
+		<span
+			class:list={["avatar avatar--mono", className]}
+			style={`--size: ${size}px`}
+			aria-hidden="true"
+		>
+			{monogram}
+		</span>
+	)
+}
+
+<style>
+	.avatar {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: var(--size);
+		height: var(--size);
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.avatar--mono {
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		font-size: calc(var(--size) * 0.4);
+		font-weight: 700;
+		line-height: 1;
+	}
+</style>

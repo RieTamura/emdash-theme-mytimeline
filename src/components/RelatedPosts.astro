@@ -1,0 +1,77 @@
+---
+import { formatDate, getLang, localizePath, ui } from "../utils/i18n";
+
+/** Posts that share a category or tag, as a card of plain links. */
+interface Props {
+	posts: Array<{ slug: string; title: string; date: Date | null }>;
+	/** Two copies can be on one page, so each heading needs its own id. */
+	id: string;
+}
+
+const { posts, id } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+---
+
+{
+	posts.length > 0 && (
+		<section class="related" aria-labelledby={id}>
+			<h2 id={id} class="related__heading">
+				{t.relatedPosts}
+			</h2>
+			<ul class="related__list">
+				{posts.map((post) => (
+					<li>
+						<a href={localizePath(`/posts/${post.slug}`, lang)} class="related__link">
+							<span class="related__title">{post.title}</span>
+							{post.date && (
+								<time class="related__date" datetime={post.date.toISOString()}>
+									{formatDate(post.date, lang)}
+								</time>
+							)}
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	)
+}
+
+<style>
+	.related__heading {
+		margin-bottom: 8px;
+		font-size: 16px;
+	}
+
+	.related__list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.related__link {
+		display: block;
+		padding: 10px 0;
+		color: var(--color-text);
+	}
+
+	li + li .related__link {
+		border-top: 1px solid var(--color-border);
+	}
+
+	.related__link:hover .related__title {
+		color: var(--color-brand);
+	}
+
+	.related__title {
+		display: block;
+		font-weight: 700;
+	}
+
+	.related__date {
+		display: block;
+		margin-top: 2px;
+		color: var(--color-muted);
+		font-size: 13px;
+	}
+</style>

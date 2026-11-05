@@ -1,0 +1,80 @@
+---
+import { getSiteSettings } from "emdash";
+import Base from "../layouts/Base.astro";
+import ProfileHeader from "./ProfileHeader.astro";
+import Timeline from "./Timeline.astro";
+import SidebarTaxonomies from "./SidebarTaxonomies.astro";
+import { loadFeed, readPage, type FeedType } from "../utils/timeline";
+import { getLang, localizePath, ui } from "../utils/i18n";
+import { loadProfilePage, resolveBlogSiteIdentity, PROFILE_URL } from "../utils/site-identity";
+
+/**
+ * The profile + tabs + timeline page. Rendered by /, /posts, /works and
+ * /bluesky (and their /en versions), which differ only in which
+ * collections the feed holds.
+ */
+interface Props {
+	type: FeedType;
+}
+
+const { type } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+const basePath = localizePath(type === "all" ? "/" : `/${type}`, lang);
+
+const page = readPage(Astro.url);
+const [feed, settings, profilePage] = await Promise.all([
+	loadFeed(type, page, lang),
+	getSiteSettings(),
+	loadProfilePage(),
+]);
+if (Astro.cache?.enabled) {
+	for (const hint of feed.cacheHints) Astro.cache.set(hint);
+}
+
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(settings);
+const author = { name: siteTitle, photo: siteLogo?.url ?? null };
+
+// The tagline is written in Japanese, so English pages use their own text.
+const heads = {
+	all: { title: siteTitle, description: lang === "en" ? t.homeDescription : siteTagline },
+	posts: { title: t.tabPosts, description: t.postsDescription },
+	works: { title: t.tabWorks, description: t.worksDescription },
+	bluesky: { title: t.tabBluesky, description: t.blueskyDescription },
+};
+
+const emptyTitle = {
+	all: t.emptyAll,
+	posts: t.emptyPosts,
+	works: t.emptyWorks,
+	bluesky: t.emptyBluesky,
+}[type];
+---
+
+<Base
+	title={heads[type].title}
+	description={heads[type].description}
+	robots={page > 1 ? "noindex, follow" : undefined}
+>
+	<ProfileHeader
+		name={siteTitle}
+		tagline={siteTagline}
+		photo={author.photo}
+		profileUrl={profilePage.exists ? localizePath(PROFILE_URL, lang) : null}
+		postCount={feed.postCount}
+		workCount={feed.workCount}
+		active={type}
+		showBluesky={feed.blueskyCount > 0}
+	/>
+	<Timeline
+		entries={feed.entries}
+		author={author}
+		basePath={basePath}
+		page={feed.page}
+		hasMore={feed.hasMore}
+		emptyTitle={emptyTitle}
+		days={feed.days}
+	/>
+
+	<SidebarTaxonomies slot="sidebar" />
+</Base>

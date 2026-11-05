@@ -1,0 +1,43 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "site-likes",
+	"publisher": "did:plc:myrtyr2rsjiivzlp5m6qevv5",
+
+	"license": "MIT",
+	"author": { "name": "Rie Tamura", "url": "https://bsky.app/profile/rietamura.com" },
+	"security": { "url": "https://github.com/RieTamura" },
+	"description": "A login-free like button for your EmDash site. Counts are visible only in the admin.",
+
+	// Trust contract — what runtime APIs the plugin asks for.
+	// Changing these between releases requires a version bump because
+	// installed users have consented to the old contract.
+	"capabilities": [
+		// Count likes only for published entries, and show their titles in the admin.
+		"content:read",
+		// Check a collection exists before reading from it.
+		"schema:read"
+	],
+	"allowedHosts": [],
+	"storage": {
+		// One record per liked entry, keyed "<collection>:<id>".
+		"counts": { "indexes": ["count", "updatedAt"] }
+	},
+
+	"admin": {
+		"pages": [{ "path": "/likes", "label": "Likes", "icon": "heart" }],
+		"settingsSchema": {
+			"language": {
+				"label": "Language / 表示する言語",
+				"description": "Language of the Likes page. Auto follows the admin's language. / 「いいね」ページの言語。自動は管理画面の言語に合わせます。",
+				"type": "select",
+				"options": [
+					{ "value": "auto", "label": "Auto / 自動" },
+					{ "value": "ja", "label": "日本語" },
+					{ "value": "en", "label": "English" }
+				],
+				"default": "auto"
+			}
+		}
+	}
+}

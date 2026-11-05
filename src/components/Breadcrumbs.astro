@@ -1,0 +1,99 @@
+---
+import { safeJsonLdSerialize } from "emdash/page";
+import { getLang, localizePath, ui } from "../utils/i18n";
+
+/**
+ * The path to this page, shown in the card bar and given to search engines
+ * as a BreadcrumbList. Home comes first on its own; the last item is the
+ * current page and has no link.
+ */
+interface Props {
+	items: Array<{ label: string; href?: string }>;
+}
+
+const { items } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+const crumbs = [{ label: t.breadcrumbHome, href: localizePath("/", lang) }, ...items];
+const lastIndex = crumbs.length - 1;
+
+const jsonLd = {
+	"@context": "https://schema.org",
+	"@type": "BreadcrumbList",
+	itemListElement: crumbs.map((crumb, index) => ({
+		"@type": "ListItem",
+		position: index + 1,
+		name: crumb.label,
+		...(index < lastIndex && crumb.href ? { item: new URL(crumb.href, Astro.url.origin).href } : {}),
+	})),
+};
+---
+
+<nav class="breadcrumbs" aria-label={t.breadcrumbLabel}>
+	<ol class="breadcrumbs__list">
+		{
+			crumbs.map((crumb, index) => (
+				<li class="breadcrumbs__item">
+					{index < lastIndex && crumb.href ? (
+						<a href={crumb.href}>{crumb.label}</a>
+					) : (
+						<span aria-current="page">{crumb.label}</span>
+					)}
+				</li>
+			))
+		}
+	</ol>
+</nav>
+<script type="application/ld+json" set:html={safeJsonLdSerialize(jsonLd)} />
+
+<style>
+	.breadcrumbs {
+		min-width: 0;
+		font-size: var(--font-size-sm);
+	}
+
+	.breadcrumbs__list {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.breadcrumbs__item {
+		display: flex;
+		flex: none;
+		align-items: center;
+		gap: 6px;
+		color: var(--color-text-secondary);
+		white-space: nowrap;
+	}
+
+	.breadcrumbs__item + .breadcrumbs__item::before {
+		content: "›" / "";
+		color: var(--color-muted);
+	}
+
+	/* A long title shortens instead of pushing the page wider */
+	.breadcrumbs__item:last-child {
+		flex: 0 1 auto;
+		min-width: 0;
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.breadcrumbs__item:last-child span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.breadcrumbs a {
+		color: inherit;
+	}
+
+	.breadcrumbs a:hover {
+		color: var(--color-brand);
+	}
+</style>

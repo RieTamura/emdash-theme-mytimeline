@@ -1,0 +1,110 @@
+---
+import { getLang, ui } from "../utils/i18n";
+
+/**
+ * Share and copy-link buttons. The click handling lives in Base.astro
+ * (one delegated listener for every pair on the page).
+ *
+ * icon: two round 44px icon buttons, for timeline rows.
+ * pill: labelled pill buttons, for the article footer.
+ */
+interface Props {
+	href: string;
+	title: string;
+	variant?: "icon" | "pill";
+}
+
+const { href, title, variant = "icon" } = Astro.props;
+const t = ui[getLang(Astro)];
+const url = new URL(href, Astro.url).href;
+---
+
+<button
+	type="button"
+	class:list={["share-btn", `share-btn--${variant}`]}
+	data-share={url}
+	data-share-title={title}
+	aria-label={variant === "icon" ? t.shareTitle(title) : undefined}
+>
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+		><path d="M12 3v12"></path><path d="m7 8 5-5 5 5"></path><path
+			d="M5 14v6h14v-6"></path></svg
+	>
+	{variant === "pill" && t.share}
+</button>
+<button
+	type="button"
+	class:list={["share-btn", `share-btn--${variant}`]}
+	data-copy={url}
+	aria-label={variant === "icon" ? t.copyLinkTitle(title) : undefined}
+>
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+		><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path
+			d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg
+	>
+	{variant === "pill" && t.copyLink}
+</button>
+
+<style>
+	.share-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		border: 0;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.share-btn svg {
+		width: 18px;
+		height: 18px;
+		flex: none;
+	}
+
+	.share-btn--icon {
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--color-muted);
+	}
+
+	.share-btn--icon:hover {
+		background: var(--color-fill);
+		color: var(--color-text);
+	}
+
+	.share-btn--pill {
+		min-height: 44px;
+		padding: 10px 18px;
+		border-radius: var(--radius-full);
+		background: var(--color-fill);
+		color: var(--color-text);
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	.share-btn--pill:hover {
+		background: var(--color-fill-strong);
+	}
+</style>

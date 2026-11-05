@@ -1,0 +1,626 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { Image, PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import { getImageUrl } from "../../utils/image-url";
+import { safeJsonLdSerialize } from "emdash/page";
+import AuthorCard from "../../components/AuthorCard.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import RelatedPosts from "../../components/RelatedPosts.astro";
+import { getLocalizedMenu } from "../../utils/menus";
+import { getPostLayout } from "../../utils/post-layout";
+import Badge from "../../components/Badge.astro";
+import LikeButton from "../../components/LikeButton.astro";
+import ShareButtons from "../../components/ShareButtons.astro";
+import TimelineItem from "../../components/TimelineItem.astro";
+import { getReadingTime } from "../../utils/reading-time";
+import {
+	categoryTone,
+	entryLanguages,
+	loadLocalized,
+	postToEntry,
+	relatedPostsFor,
+	termLabeler,
+	translationGroupOf,
+} from "../../utils/timeline";
+import { formatDate, getLang, localizePath, ui } from "../../utils/i18n";
+import { PROFILE_URL, resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const lang = getLang(Astro);
+const t = ui[lang];
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+// English pages fall back to the Japanese post when there's no English one.
+const { entry: post, cacheHint, fallbackLocale } = await getEmDashEntry("posts", slug, {
+	locale: lang,
+});
+
+if (!post) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const featuredImageUrl = getImageUrl(post.data.featured_image, Astro.url.origin);
+const siteSettings = await getSiteSettings();
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(siteSettings);
+const author = { name: siteTitle, photo: siteLogo?.url ?? null };
+
+const { alternates, contentLangs, contentLang, canonicalPath } = await entryLanguages(
+	"posts",
+	post,
+	lang,
+	fallbackLocale,
+);
+
+const siteDefaultImage = siteSettings.seo?.defaultOgImage?.url;
+const defaultOgImageUrl = siteDefaultImage
+	? new URL(siteDefaultImage, Astro.url.origin).href
+	: undefined;
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: canonicalPath,
+	// The site's default image goes here too, because post-layout's BlogPosting
+	// only sees what the page passes on.
+	defaultOgImage: featuredImageUrl || defaultOgImageUrl,
+});
+
+const readingTime = getReadingTime(post.data.content);
+
+// Terms are already hydrated onto the entry by getEmDashEntry
+const [categoryNames, tagNames] = await Promise.all([
+	termLabeler("category", lang),
+	termLabeler("tag", lang),
+]);
+const tags = post.data.terms?.tag ?? [];
+const category = post.data.terms?.category?.[0];
+
+const publishedAt = post.data.publishedAt ?? null;
+const publishDate = publishedAt ? formatDate(publishedAt, lang) : null;
+
+// The posts just before and after this one, in this page's language
+const allPosts = await loadLocalized("posts", lang);
+if (Astro.cache?.enabled) {
+	for (const hint of allPosts.cacheHints) Astro.cache.set(hint);
+}
+const index = allPosts.entries.findIndex(
+	(entry) => translationGroupOf(entry) === translationGroupOf(post),
+);
+const around = [
+	{ label: t.newerPost, post: index > 0 ? allPosts.entries[index - 1] : undefined },
+	{ label: t.olderPost, post: index >= 0 ? allPosts.entries[index + 1] : undefined },
+].flatMap(({ label, post: p }) => (p ? [{ label, entry: postToEntry(p, lang) }] : []));
+
+// Where the admin chose to put the author card, related posts and updated date
+const layout = await getPostLayout();
+const related = layout.related === "off" ? [] : await relatedPostsFor(post, allPosts.entries);
+
+// Only when it was updated on a later day; the same day adds nothing
+const updatedDate = formatDate(post.data.updatedAt, lang);
+const showUpdated = publishDate !== null && updatedDate !== publishDate;
+
+// EmDashHead names the author; this says who that is, so it's there wherever the card goes.
+const { items: socialItems } = await getLocalizedMenu("social", lang);
+const sameAs = socialItems.map((item) => item.url).filter((url) => url.startsWith("http"));
+const authorJsonLd = {
+	"@context": "https://schema.org",
+	"@type": "Person",
+	name: siteTitle,
+	url: new URL(localizePath(PROFILE_URL, lang), Astro.url.origin).href,
+	...(sameAs.length > 0 ? { sameAs } : {}),
+};
+
+// The script below builds the table of contents and has the final say; this
+// guess keeps the sidebar from shifting when the page loads.
+const hasHeadings = (post.data.content ?? []).some(
+	(block) =>
+		block._type === "block" &&
+		"style" in block &&
+		(block.style === "h2" || block.style === "h3"),
+);
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	author={author.name}
+	content={{ collection: "posts", id: post.data.id, slug }}
+	alternates={alternates}
+	contentLangs={contentLangs}
+>
+	<div class="card-bar">
+		<a href={localizePath("/", lang)} class="icon-btn" aria-label={t.backToTimeline}>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg
+			>
+		</a>
+		<Breadcrumbs
+			items={[
+				category
+					? {
+							label: categoryNames.label(category),
+							href: localizePath(`/category/${category.slug}`, lang),
+						}
+					: { label: t.tabPosts, href: localizePath("/posts", lang) },
+				{ label: post.data.title },
+			]}
+		/>
+	</div>
+
+	<article class="post">
+		<header>
+			{
+				post.data.featured_image && (
+					<div class="post__media" {...post.edit.featured_image}>
+						<Image
+							image={post.data.featured_image}
+							sizes="(min-width: 760px) 664px, 92vw"
+							priority
+						/>
+					</div>
+				)
+			}
+			<div class="post__meta">
+				<div class="post__meta-text">
+					{
+						tags.length > 0 && (
+							<ul class="tag-list" aria-label={t.tags}>
+								{tags.map((tag) => (
+									<li>
+										<a href={localizePath(`/tag/${tag.slug}`, lang)} class="tag-chip">
+											# {tagNames.label(tag)}
+										</a>
+									</li>
+								))}
+							</ul>
+						)
+					}
+					<p class="post__dateline">
+						{
+							publishedAt && (
+								<>
+									<time datetime={publishedAt.toISOString()}>{publishDate}</time>
+									{t.listSeparator}
+								</>
+							)
+						}
+						{
+							layout.updated === "dateline" && showUpdated && (
+								<>
+									<time datetime={post.data.updatedAt.toISOString()}>{t.updatedOn(updatedDate)}</time>
+									{t.listSeparator}
+								</>
+							)
+						}
+						{t.readingTime(readingTime)}
+					</p>
+				</div>
+				{
+					category && (
+						<a href={localizePath(`/category/${category.slug}`, lang)} class="post__category">
+							<Badge tone={categoryTone(category.slug)} size="md">
+								{categoryNames.label(category)}
+							</Badge>
+						</a>
+					)
+				}
+			</div>
+
+			{contentLang && <p class="lang-notice">{t.onlyInJapanese}</p>}
+
+			<h1 class="post__title" lang={contentLang} {...post.edit.title}>{post.data.title}</h1>
+			{
+				post.data.excerpt && (
+					<p class="post__lead" lang={contentLang} {...post.edit.excerpt}>
+						{post.data.excerpt}
+					</p>
+				)
+			}
+		</header>
+
+		<!-- Phones hide the sidebar, so the contents fold out above the body instead -->
+		{
+			layout.author === "before" && (
+				<div class="post__part">
+					<AuthorCard name={siteTitle} tagline={siteTagline} photo={author.photo} background={layout.authorBackground} id="author-before" />
+				</div>
+			)
+		}
+
+		<details class="toc toc--inline" hidden={!hasHeadings} data-toc>
+			<summary class="toc__summary">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+					><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path
+						d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg
+				>
+				<span>{t.toc}</span>
+				<svg
+					class="toc__chevron"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg
+				>
+			</summary>
+			<ol class="toc__list" data-toc-list></ol>
+		</details>
+
+		<div class="prose post__body" data-post-content lang={contentLang} {...post.edit.content}>
+			<PortableText value={post.data.content} />
+		</div>
+
+		{
+			layout.updated === "after" && showUpdated && (
+				<p class="post__updated">
+					<time datetime={post.data.updatedAt.toISOString()}>{t.updatedOn(updatedDate)}</time>
+				</p>
+			)
+		}
+
+		<div class="post__share">
+			<LikeButton collection="posts" id={post.data.id} title={post.data.title} variant="pill" />
+			<ShareButtons href={alternates[lang]} title={post.data.title} variant="pill" />
+		</div>
+
+		{/* A sidebar choice also renders here for small screens, where the sidebar is hidden. */}
+		{
+			(layout.author === "after" || layout.author === "sidebar") && (
+				<div class:list={["post__part", { "post__part--narrow": layout.author === "sidebar" }]}>
+					<AuthorCard name={siteTitle} tagline={siteTagline} photo={author.photo} background={layout.authorBackground} id="author-after" />
+				</div>
+			)
+		}
+		{
+			related.length > 0 && (
+				<div class:list={["post__part", { "post__part--narrow": layout.related === "sidebar" }]}>
+					<RelatedPosts posts={related} id="related-after" />
+				</div>
+			)
+		}
+	</article>
+
+	<script type="application/ld+json" set:html={safeJsonLdSerialize(authorJsonLd)} />
+
+	{
+		around.length > 0 && (
+			<section class="around" style={`background: ${layout.aroundBackground}`} aria-labelledby="around-title">
+				<h2 id="around-title" class="around__title">
+					{t.morePosts}
+				</h2>
+				{around.map(({ label, entry }) => (
+					<TimelineItem entry={entry} author={author} variant="compact" label={label} />
+				))}
+			</section>
+		)
+	}
+
+	<Fragment slot="sidebar-top">
+		<nav class="side-card toc" aria-labelledby="toc-title" hidden={!hasHeadings} data-toc>
+			<h2 id="toc-title" class="side-card__title">{t.toc}</h2>
+			<ol class="toc__list" data-toc-list></ol>
+		</nav>
+		{
+			layout.author === "sidebar" && (
+				<AuthorCard name={siteTitle} tagline={siteTagline} photo={author.photo} background={layout.authorBackground} id="author-side" />
+			)
+		}
+		{layout.related === "sidebar" && <RelatedPosts posts={related} id="related-side" />}
+	</Fragment>
+
+	<script>
+		// Build the table of contents from the body's h2/h3 headings. There are
+		// two copies: the sidebar card (PC) and the fold-out above the body (phones).
+		function buildToc() {
+			const content = document.querySelector("[data-post-content]");
+			const tocs = [...document.querySelectorAll<HTMLElement>("[data-toc]")];
+			if (!content || tocs.length === 0) return;
+
+			const headings = [
+				...content.querySelectorAll<HTMLHeadingElement>("h2, h3"),
+			];
+			for (const toc of tocs) toc.hidden = headings.length === 0;
+			if (headings.length === 0) return;
+
+			const links = new Map<Element, HTMLAnchorElement[]>();
+			headings.forEach((heading, index) => {
+				if (!heading.id) {
+					heading.id = `heading-${index}`;
+				}
+			});
+
+			for (const list of document.querySelectorAll("[data-toc-list]")) {
+				for (const heading of headings) {
+					const item = document.createElement("li");
+					item.className =
+						heading.tagName === "H3"
+							? "toc__item toc__item--nested"
+							: "toc__item";
+
+					const link = document.createElement("a");
+					link.href = `#${heading.id}`;
+					link.className = "toc__link";
+					link.textContent = heading.textContent;
+
+					item.appendChild(link);
+					list.appendChild(item);
+					links.set(heading, [...(links.get(heading) ?? []), link]);
+				}
+			}
+
+			// Mark the section currently in view
+			const setCurrent = (current: HTMLAnchorElement[]) => {
+				for (const group of links.values()) {
+					for (const link of group) link.removeAttribute("aria-current");
+				}
+				for (const link of current) link.setAttribute("aria-current", "true");
+			};
+			const first = links.values().next().value;
+			if (first) setCurrent(first);
+
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						const link = links.get(entry.target);
+						if (link && entry.isIntersecting) setCurrent(link);
+					}
+				},
+				{ rootMargin: "-80px 0px -80% 0px" },
+			);
+
+			headings.forEach((heading) => observer.observe(heading));
+		}
+
+		buildToc();
+	</script>
+</Base>
+
+<style>
+	.post {
+		padding: 24px 28px 8px;
+	}
+
+	.post__meta {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.post__meta-text {
+		display: grid;
+		flex: 1 1 auto;
+		gap: 8px;
+		min-width: 0;
+	}
+
+	.post__dateline {
+		font-size: 13px;
+		color: var(--color-muted);
+	}
+
+	.post__category {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		/* Keep the 44px tap target but line the badge up with the first chip row */
+		margin-top: -6px;
+		text-decoration: none;
+	}
+
+	.post__title {
+		margin-top: 20px;
+		font-size: 32px;
+		line-height: 1.45;
+	}
+
+	.post__lead {
+		margin-top: 10px;
+		font-size: 17px;
+		color: var(--color-text-secondary);
+	}
+
+	.post__media {
+		aspect-ratio: 1200 / 630;
+		margin-bottom: 20px;
+		overflow: hidden;
+		border-radius: 20px;
+		background: var(--color-fill);
+	}
+
+	.post__media :global(img) {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.post__body {
+		margin-top: 28px;
+		margin-bottom: 1.5em;
+	}
+
+	.post__share {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 20px;
+		padding: 12px 0;
+		border-block: 1px solid var(--color-border);
+	}
+
+	.post__part {
+		margin-top: 20px;
+	}
+
+	.post__updated {
+		margin-top: 20px;
+		color: var(--color-muted);
+		font-size: 14px;
+	}
+
+	@media (min-width: 880px) {
+		.post__part--narrow {
+			display: none;
+		}
+	}
+
+	.around {
+		margin: 0 28px 28px;
+		padding: 20px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-card);
+	}
+
+	.around__title {
+		margin-bottom: 4px;
+		font-size: 16px;
+	}
+
+	.around :global(.tl-compact) {
+		padding-inline: 0;
+		border-bottom: 0;
+	}
+
+	.around :global(.tl-compact:hover) {
+		background: none;
+	}
+
+	.around :global(.tl-compact:hover .tl-compact__title) {
+		color: var(--color-brand);
+	}
+
+	/* Table of contents (sidebar) */
+	.toc[hidden] {
+		display: none;
+	}
+
+	.toc__list {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		list-style: none;
+	}
+
+	.toc :global(.toc__link) {
+		display: block;
+		padding: 8px 12px;
+		border-radius: 14px;
+		color: var(--color-text);
+		line-height: var(--leading-snug);
+		text-decoration: none;
+		transition: background-color var(--transition-fast);
+	}
+
+	.toc :global(.toc__item--nested .toc__link) {
+		padding-inline-start: 28px;
+		font-size: 14px;
+	}
+
+	.toc :global(.toc__link:hover),
+	.toc :global(.toc__link[aria-current="true"]) {
+		background: var(--color-fill);
+		color: var(--color-text);
+	}
+
+	/* Table of contents (phones): folds out between the header and the body */
+	.toc--inline {
+		margin-top: 24px;
+		border-radius: 20px;
+		background: var(--color-fill);
+	}
+
+	.toc__summary {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 48px;
+		padding: 0 16px;
+		border-radius: 20px;
+		font-weight: 700;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.toc__summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.toc__summary svg {
+		flex: none;
+		width: 20px;
+		height: 20px;
+	}
+
+	.toc__chevron {
+		margin-inline-start: auto;
+		transition: rotate var(--transition-fast);
+	}
+
+	.toc--inline[open] .toc__chevron {
+		rotate: 180deg;
+	}
+
+	.toc--inline .toc__list {
+		padding: 0 8px 12px;
+	}
+
+	.toc--inline :global(.toc__link:hover),
+	.toc--inline :global(.toc__link[aria-current="true"]) {
+		background: var(--color-surface);
+	}
+
+	@media (min-width: 880px) {
+		.toc--inline {
+			display: none;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.post {
+			padding-inline: 20px;
+		}
+
+		.post__title {
+			font-size: 26px;
+		}
+
+		.around {
+			margin-inline: 20px;
+		}
+	}
+</style>

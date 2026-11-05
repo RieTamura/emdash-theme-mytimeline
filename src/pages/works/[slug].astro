@@ -1,0 +1,256 @@
+---
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import { Image, PortableText } from "emdash/ui";
+import { safeJsonLdSerialize } from "emdash/page";
+import Base from "../../layouts/Base.astro";
+import { getImageUrl } from "../../utils/image-url";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Badge from "../../components/Badge.astro";
+import LikeButton from "../../components/LikeButton.astro";
+import ShareButtons from "../../components/ShareButtons.astro";
+import { entryLanguages, termLabeler } from "../../utils/timeline";
+import { formatDate, getLang, localizePath, ui } from "../../utils/i18n";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const lang = getLang(Astro);
+const t = ui[lang];
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+// English pages fall back to the Japanese work when there's no English one.
+const { entry: work, cacheHint, fallbackLocale } = await getEmDashEntry("works", slug, {
+	locale: lang,
+});
+
+if (!work) {
+	return Astro.rewrite(localizePath("/404", lang));
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const { alternates, contentLangs, contentLang, canonicalPath } = await entryLanguages(
+	"works",
+	work,
+	lang,
+	fallbackLocale,
+);
+const seo = getSeoMeta(work, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: canonicalPath,
+	defaultOgImage: getImageUrl(work.data.featured_image, Astro.url.origin),
+});
+
+// Stack terms are hydrated onto the entry by getEmDashEntry.
+const stackNames = await termLabeler("stack", lang);
+const stack = (work.data.terms?.stack ?? []).map((term) => stackNames.label(term));
+const publishedAt = work.data.publishedAt ?? null;
+
+// EmDashHead only knows blog posts and whole sites, so a work describes itself here.
+const links = [work.data.site_url, work.data.repo_url].filter(Boolean);
+const workJsonLd = {
+	"@context": "https://schema.org",
+	"@type": "CreativeWork",
+	name: seo.ogTitle ?? work.data.title,
+	description: seo.description ?? work.data.summary ?? undefined,
+	url: seo.canonical ?? undefined,
+	image: seo.ogImage ?? undefined,
+	datePublished: publishedAt?.toISOString(),
+	dateModified: work.data.updatedAt.toISOString(),
+	author: { "@type": "Person", name: siteTitle },
+	keywords: stack.length > 0 ? stack.join(", ") : undefined,
+	sameAs: links.length > 0 ? links : undefined,
+};
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description ?? work.data.summary}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "works", id: work.data.id, slug }}
+	alternates={alternates}
+	contentLangs={contentLangs}
+>
+	<div class="card-bar">
+		<a href={localizePath("/works", lang)} class="icon-btn" aria-label={t.backToWorks}>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg
+			>
+		</a>
+		<Breadcrumbs
+			items={[{ label: t.tabWorks, href: localizePath("/works", lang) }, { label: work.data.title }]}
+		/>
+	</div>
+
+	<script type="application/ld+json" set:html={safeJsonLdSerialize(workJsonLd)} />
+
+	<article class="work">
+		<header>
+			{
+				work.data.featured_image && (
+					<div class="work__media" {...work.edit.featured_image}>
+						<Image
+							image={work.data.featured_image}
+							sizes="(min-width: 760px) 664px, 92vw"
+							priority
+						/>
+					</div>
+				)
+			}
+			<div class="work__meta">
+				<div class="work__meta-text">
+					{
+						stack.length > 0 && (
+							<ul class="chips" aria-label={t.builtWith}>
+								{stack.map((name) => (
+									<li>
+										<span class="chip"># {name}</span>
+									</li>
+								))}
+							</ul>
+						)
+					}
+					{
+						publishedAt && (
+							<p class="work__dateline">
+								<time datetime={publishedAt.toISOString()}>
+									{formatDate(publishedAt, lang)}
+								</time>
+							</p>
+						)
+					}
+				</div>
+				<Badge tone="ink" size="md">{t.work}</Badge>
+			</div>
+
+			{contentLang && <p class="lang-notice">{t.onlyInJapanese}</p>}
+
+			<h1 class="work__title" lang={contentLang} {...work.edit.title}>{work.data.title}</h1>
+			{
+				work.data.summary && (
+					<p class="work__lead" lang={contentLang} {...work.edit.summary}>
+						{work.data.summary}
+					</p>
+				)
+			}
+		</header>
+
+		<div class="prose work__body" lang={contentLang} {...work.edit.content}>
+			<PortableText value={work.data.content} />
+		</div>
+
+		{
+			(work.data.site_url || work.data.repo_url) && (
+				<div class="work__links">
+					{work.data.site_url && (
+						<a href={work.data.site_url} class="pill-btn pill-btn--brand" rel="noopener">
+							{t.visitSite}
+						</a>
+					)}
+					{work.data.repo_url && (
+						<a href={work.data.repo_url} class="pill-btn pill-btn--ghost" rel="noopener">
+							{t.sourceCode}
+						</a>
+					)}
+				</div>
+			)
+		}
+
+		<div class="work__share">
+			<LikeButton collection="works" id={work.data.id} title={work.data.title} variant="pill" />
+			<ShareButtons href={alternates[lang]} title={work.data.title} variant="pill" />
+		</div>
+	</article>
+</Base>
+
+<style>
+	.work {
+		padding: 24px 28px 28px;
+	}
+
+	.work__meta {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.work__meta-text {
+		display: grid;
+		flex: 1 1 auto;
+		gap: 8px;
+		min-width: 0;
+	}
+
+	.work__dateline {
+		font-size: 13px;
+		color: var(--color-muted);
+	}
+
+	.work__title {
+		margin-top: 20px;
+		font-size: 32px;
+		line-height: 1.45;
+	}
+
+	.work__lead {
+		margin-top: 10px;
+		font-size: 17px;
+		color: var(--color-text-secondary);
+	}
+
+	.work__links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 28px;
+	}
+
+	.work__media {
+		margin-bottom: 20px;
+		overflow: hidden;
+		border-radius: 20px;
+		background: var(--color-fill);
+	}
+
+	.work__media :global(img) {
+		width: 100%;
+		max-width: none;
+		height: auto;
+	}
+
+	.work__body {
+		margin-top: 28px;
+	}
+
+	.work__share {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 28px;
+		padding: 12px 0;
+		border-block: 1px solid var(--color-border);
+	}
+
+	@media (max-width: 560px) {
+		.work {
+			padding-inline: 20px;
+		}
+
+		.work__title {
+			font-size: 26px;
+		}
+	}
+</style>

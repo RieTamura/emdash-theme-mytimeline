@@ -1,0 +1,804 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"meta": {
+		"name": "MyTimeline",
+		"description": "ブログ、作ったもの、Bluesky、RSS をひとつのタイムラインにまとめる EmDash のテーマ",
+		"author": "Rie Tamura"
+	},
+	"settings": {
+		"title": "MyTimeline",
+		"tagline": "書いたものと作ったものを、ひとつのタイムラインに"
+	},
+	"collections": [
+		{
+			"slug": "posts",
+			"label": "ブログ",
+			"labelSingular": "記事",
+			"urlPattern": "/posts/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"scheduling",
+				"search",
+				"seo"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured Image",
+					"type": "image"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "excerpt",
+					"label": "Excerpt",
+					"type": "text"
+				}
+			]
+		},
+		{
+			"slug": "pages",
+			"label": "固定ページ",
+			"labelSingular": "固定ページ",
+			"urlPattern": "/pages/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"search",
+				"seo"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		},
+		{
+			"slug": "works",
+			"label": "作ったもの",
+			"labelSingular": "作ったもの",
+			"urlPattern": "/works/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"search",
+				"seo"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "タイトル",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "summary",
+					"label": "概要",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "サムネイル",
+					"type": "image"
+				},
+				{
+					"slug": "site_url",
+					"label": "サイトURL",
+					"type": "url"
+				},
+				{
+					"slug": "repo_url",
+					"label": "リポジトリURL",
+					"type": "url"
+				},
+				{
+					"slug": "content",
+					"label": "本文",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		},
+		{
+			"slug": "bluesky",
+			"label": "Bluesky",
+			"labelSingular": "Bluesky の投稿",
+			"description": "Bluesky Feed プラグインが自動で入れる Bluesky の投稿",
+			"supports": [
+				"drafts",
+				"revisions"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "タイトル",
+					"type": "string"
+				},
+				{
+					"slug": "text",
+					"label": "本文",
+					"type": "text"
+				},
+				{
+					"slug": "segments",
+					"label": "本文（リンク付き）",
+					"type": "json"
+				},
+				{
+					"slug": "post_url",
+					"label": "投稿のURL",
+					"type": "string"
+				},
+				{
+					"slug": "post_uri",
+					"label": "AT-URI",
+					"type": "string"
+				},
+				{
+					"slug": "posted_at",
+					"label": "投稿日時",
+					"type": "datetime"
+				},
+				{
+					"slug": "images",
+					"label": "画像",
+					"type": "json"
+				},
+				{
+					"slug": "link_card",
+					"label": "リンクカード",
+					"type": "json"
+				},
+				{
+					"slug": "langs",
+					"label": "言語",
+					"type": "json"
+				}
+			]
+		},
+		{
+			"slug": "feed_items",
+			"label": "フィード",
+			"labelSingular": "フィードの項目",
+			"description": "RSS Feed プラグインが自動で入れる YouTube や note などの項目",
+			"supports": [
+				"drafts",
+				"revisions"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "タイトル",
+					"type": "string"
+				},
+				{
+					"slug": "summary",
+					"label": "概要",
+					"type": "text"
+				},
+				{
+					"slug": "item_url",
+					"label": "項目のURL",
+					"type": "string"
+				},
+				{
+					"slug": "item_id",
+					"label": "項目のID",
+					"type": "string"
+				},
+				{
+					"slug": "posted_at",
+					"label": "投稿日時",
+					"type": "datetime"
+				},
+				{
+					"slug": "thumbnail",
+					"label": "サムネイル",
+					"type": "json"
+				},
+				{
+					"slug": "source",
+					"label": "配信元",
+					"type": "string"
+				},
+				{
+					"slug": "kind",
+					"label": "種類",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "category",
+			"label": "カテゴリー",
+			"labelSingular": "カテゴリー",
+			"hierarchical": true,
+			"collections": [
+				"posts"
+			],
+			"terms": [
+				{
+					"slug": "development",
+					"label": "開発"
+				},
+				{
+					"slug": "design",
+					"label": "デザイン"
+				},
+				{
+					"slug": "notes",
+					"label": "メモ"
+				}
+			]
+		},
+		{
+			"name": "tag",
+			"label": "タグ",
+			"labelSingular": "タグ",
+			"hierarchical": false,
+			"collections": [
+				"posts"
+			],
+			"terms": [
+				{
+					"slug": "webdev",
+					"label": "Web開発"
+				},
+				{
+					"slug": "opinion",
+					"label": "考えごと"
+				},
+				{
+					"slug": "tools",
+					"label": "ツール"
+				},
+				{
+					"slug": "creativity",
+					"label": "創作"
+				}
+			]
+		},
+		{
+			"name": "stack",
+			"label": "使用技術",
+			"labelSingular": "使用技術",
+			"hierarchical": false,
+			"collections": [
+				"works"
+			],
+			"terms": [
+				{
+					"slug": "astro",
+					"label": "Astro"
+				},
+				{
+					"slug": "emdash",
+					"label": "EmDash"
+				},
+				{
+					"slug": "cloudflare",
+					"label": "Cloudflare"
+				}
+			]
+		}
+	],
+	"menus": [
+		{
+			"name": "primary",
+			"label": "メインメニュー",
+			"items": [
+				{
+					"type": "custom",
+					"label": "タイムライン",
+					"url": "/"
+				},
+				{
+					"type": "custom",
+					"label": "ブログ",
+					"url": "/posts"
+				},
+				{
+					"type": "custom",
+					"label": "作ったもの",
+					"url": "/works"
+				},
+				{
+					"type": "custom",
+					"label": "プロフィール",
+					"url": "/pages/about"
+				}
+			]
+		},
+		{
+			"name": "social",
+			"label": "SNS",
+			"items": []
+		}
+	],
+	"widgetAreas": [
+		{
+			"name": "sidebar",
+			"label": "サイドバー",
+			"description": "記事ページに表示するウィジェット",
+			"widgets": [
+				{
+					"type": "component",
+					"componentId": "core:categories",
+					"title": "カテゴリー"
+				},
+				{
+					"type": "component",
+					"componentId": "core:tags",
+					"title": "タグ"
+				},
+				{
+					"type": "component",
+					"componentId": "core:recent-posts",
+					"title": "最近の記事",
+					"props": {
+						"count": 5,
+						"showDate": true
+					}
+				}
+			]
+		},
+		{
+			"name": "footer",
+			"label": "フッター",
+			"description": "サイト下部に表示するウィジェット",
+			"widgets": [
+				{
+					"type": "content",
+					"title": "このサイトについて",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "ブログと、作ったサイトやサービスの紹介。",
+									"_key": "k1"
+								}
+							],
+							"_key": "k0"
+						}
+					]
+				}
+			]
+		}
+	],
+	"sections": [
+		{
+			"slug": "newsletter-signup",
+			"title": "更新のお知らせ",
+			"description": "記事の更新をお知らせするブロック",
+			"keywords": [
+				"newsletter",
+				"subscribe",
+				"email",
+				"cta"
+			],
+			"source": "theme",
+			"content": [
+				{
+					"_type": "block",
+					"style": "h3",
+					"children": [
+						{
+							"_type": "span",
+							"text": "新しい記事を受け取る",
+							"_key": "k1"
+						}
+					],
+					"_key": "k0"
+				},
+				{
+					"_type": "block",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"text": "新しい記事を公開したときにお知らせします。",
+							"_key": "k3"
+						}
+					],
+					"_key": "k2"
+				}
+			]
+		},
+		{
+			"slug": "about-author",
+			"title": "著者について",
+			"description": "記事やページに入れる短いプロフィール",
+			"keywords": [
+				"author",
+				"bio",
+				"about"
+			],
+			"source": "theme",
+			"content": [
+				{
+					"_type": "block",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"text": "Web のサイトやサービスを作っています。作ったものや、作りながら考えたことを書いています。",
+							"_key": "k1"
+						}
+					],
+					"_key": "k0"
+				}
+			]
+		}
+	],
+	"content": {
+		"pages": [
+			{
+				"id": "about",
+				"slug": "about",
+				"status": "published",
+				"data": {
+					"title": "プロフィール",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k0",
+							"children": [
+								{
+									"_type": "span",
+									"text": "ここに自己紹介を書きます。何をしている人か、このサイトに何を載せるかを 2、3 行で書くと、初めて来た人に伝わります。",
+									"_key": "k1"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "このページは管理画面の「ページ」から編集できます。",
+									"_key": "k3"
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"posts": [
+			{
+				"id": "post-first-steps",
+				"slug": "first-steps",
+				"status": "published",
+				"data": {
+					"title": "サイトを公開したら最初にやること",
+					"excerpt": "サイト名とプロフィールを書き換え、サンプルを消して、最初の記事を書くまでの手順です。",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k4",
+							"children": [
+								{
+									"_type": "span",
+									"text": "このサイトは、テーマ MyTimeline のサンプルです。公開したら、次の順に自分のサイトに変えていきます。",
+									"_key": "k5"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k6",
+							"children": [
+								{
+									"_type": "span",
+									"text": "基本の情報を変える",
+									"_key": "k7"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k8",
+							"children": [
+								{
+									"_type": "span",
+									"text": "設定の「全般」で、サイト名とキャッチフレーズを変えます。",
+									"_key": "k9"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k10",
+							"children": [
+								{
+									"_type": "span",
+									"text": "同じ画面でロゴを選ぶと、プロフィールの写真とアバターに使われます。",
+									"_key": "k11"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k12",
+							"children": [
+								{
+									"_type": "span",
+									"text": "「ページ」の「プロフィール」を書き換えます。",
+									"_key": "k13"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k14",
+							"children": [
+								{
+									"_type": "span",
+									"text": "メニューの「SNS」に自分のアカウントを足します。",
+									"_key": "k15"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k16",
+							"children": [
+								{
+									"_type": "span",
+									"text": "サンプルを片づける",
+									"_key": "k17"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k18",
+							"children": [
+								{
+									"_type": "span",
+									"text": "この記事を含むサンプルの記事と作ったものは、管理画面から消せます。カテゴリーとタグも、自分の書くものに合わせて変えてください。",
+									"_key": "k19"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k20",
+							"children": [
+								{
+									"_type": "span",
+									"text": "検索エンジンに知らせる",
+									"_key": "k21"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k22",
+							"children": [
+								{
+									"_type": "span",
+									"text": "設定の「SEO」で、SNS でシェアされたときの既定の画像を選びます。Google Search Console にサイトを登録して、sitemap.xml を送信します。",
+									"_key": "k23"
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"notes"
+					],
+					"tag": [
+						"tools"
+					]
+				}
+			},
+			{
+				"id": "post-timeline",
+				"slug": "how-the-timeline-works",
+				"status": "published",
+				"data": {
+					"title": "タイムラインの仕組み",
+					"excerpt": "記事、作ったもの、Bluesky、RSS がどう並ぶのか、タブとの関係をまとめました。",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k24",
+							"children": [
+								{
+									"_type": "span",
+									"text": "トップページの「すべて」には、日付ごとに新しい順で内容が並びます。その日の記事と作ったものが先で、Bluesky の投稿はそのあとに小さく続きます。",
+									"_key": "k25"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k26",
+							"children": [
+								{
+									"_type": "span",
+									"text": "使わないものは出ません",
+									"_key": "k27"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k28",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Bluesky のタブは、投稿が取り込まれるまで表示されません。使わないなら、何も設定しなくてかまいません。",
+									"_key": "k29"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k30",
+							"children": [
+								{
+									"_type": "span",
+									"text": "外のサービスの内容を入れる",
+									"_key": "k31"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k32",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Bluesky：プラグインの設定にハンドルを入れると、5 分ごとに新しい投稿を取り込みます。",
+									"_key": "k33"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"_key": "k34",
+							"children": [
+								{
+									"_type": "span",
+									"text": "RSS：プラグインの設定にフィードの URL を入れると、YouTube、note、Zenn、はてなブログの新しい項目を 30 分ごとに取り込みます。",
+									"_key": "k35"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"_key": "k36",
+							"children": [
+								{
+									"_type": "span",
+									"text": "記事のページの配置",
+									"_key": "k37"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k38",
+							"children": [
+								{
+									"_type": "span",
+									"text": "「この記事を書いた人」、関連記事、更新日の場所は、プラグイン post-layout の設定で変えられます。",
+									"_key": "k39"
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": {
+					"category": [
+						"development"
+					],
+					"tag": [
+						"tools"
+					]
+				}
+			}
+		],
+		"works": [
+			{
+				"id": "work-sample",
+				"slug": "sample-work",
+				"status": "published",
+				"data": {
+					"title": "作ったもののサンプル",
+					"summary": "作ったサイトやサービスを、ここで紹介します。画像、サイトの URL、ソースコードの URL を付けられます。",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"_key": "k40",
+							"children": [
+								{
+									"_type": "span",
+									"text": "作ったものの説明を書きます。何のために作ったか、どんな人に役立つかを書くと伝わります。使った技術は「技術」のタグで付けられます。",
+									"_key": "k41"
+								}
+							]
+						}
+					]
+				},
+				"taxonomies": {
+					"stack": [
+						"astro",
+						"emdash",
+						"cloudflare"
+					]
+				}
+			}
+		]
+	}
+}

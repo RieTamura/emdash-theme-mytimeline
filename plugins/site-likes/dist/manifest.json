@@ -1,0 +1,68 @@
+{
+  "id": "site-likes",
+  "version": "0.1.0",
+  "declaredAccess": {
+    "content": {
+      "read": {}
+    },
+    "schema": {
+      "read": {}
+    }
+  },
+  "capabilities": [
+    "content:read",
+    "schema:read"
+  ],
+  "allowedHosts": [],
+  "storage": {
+    "counts": {
+      "indexes": [
+        "count",
+        "updatedAt"
+      ]
+    }
+  },
+  "hooks": [],
+  "routes": [
+    {
+      "name": "like",
+      "methods": [
+        "POST"
+      ],
+      "public": true
+    },
+    "admin"
+  ],
+  "admin": {
+    "settingsSchema": {
+      "language": {
+        "label": "Language / 表示する言語",
+        "description": "Language of the Likes page. Auto follows the admin's language. / 「いいね」ページの言語。自動は管理画面の言語に合わせます。",
+        "type": "select",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto / 自動"
+          },
+          {
+            "value": "ja",
+            "label": "日本語"
+          },
+          {
+            "value": "en",
+            "label": "English"
+          }
+        ],
+        "default": "auto"
+      }
+    },
+    "pages": [
+      {
+        "path": "/likes",
+        "label": "Likes",
+        "icon": "heart"
+      }
+    ],
+    "widgets": []
+  }
+}

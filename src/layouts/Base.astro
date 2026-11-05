@@ -1,0 +1,1582 @@
+---
+import { getSiteSettingsWithCacheHint } from "emdash";
+import { EmDashHead, EmDashBodyStart, EmDashBodyEnd } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+import LiveSearch from "emdash/ui/search";
+import { Font } from "astro:assets";
+import Avatar from "../components/Avatar.astro";
+import SiteMenu, { type MenuIcon } from "../components/SiteMenu.astro";
+import {
+	getLang,
+	LANG_NAMES,
+	LANGS,
+	localizePath,
+	stripLangPrefix,
+	ui,
+	type Lang,
+} from "../utils/i18n";
+import { getLocalizedMenu } from "../utils/menus";
+import { resolveBlogSiteIdentity, loadProfilePage, PROFILE_URL } from "../utils/site-identity";
+import "../styles/tokens.css";
+import "../styles/theme.css";
+
+interface Props {
+	title: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	robots?: string | null;
+	type?: "website" | "article";
+	publishedTime?: string | null;
+	modifiedTime?: string | null;
+	author?: string | null;
+	/** Pass content reference for plugin page contributions on content pages */
+	content?: { collection: string; id: string; slug?: string | null };
+	/**
+	 * This page in each language, for the language switcher. Defaults to
+	 * the same path with and without /en; entry pages pass their
+	 * translations' slugs.
+	 */
+	alternates?: Partial<Record<Lang, string>>;
+	/** Languages the page's content is actually written in, for hreflang links */
+	contentLangs?: Lang[];
+}
+
+const {
+	title,
+	pageTitle,
+	description,
+	image,
+	canonical,
+	robots,
+	type = "website",
+	publishedTime,
+	modifiedTime,
+	author,
+	content,
+	alternates,
+	contentLangs = LANGS,
+} = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+
+const [settingsResult, menu, profilePage] = await Promise.all([
+	getSiteSettingsWithCacheHint(),
+	getLocalizedMenu("primary", lang),
+	loadProfilePage(),
+]);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(settingsResult.cacheHint);
+	for (const hint of menu.cacheHints) Astro.cache.set(hint);
+	Astro.cache.set(profilePage.cacheHint);
+}
+
+const { siteTitle, siteLogo } = resolveBlogSiteIdentity(settingsResult.data);
+const titleIncludesSiteName =
+	title === siteTitle ||
+	title.endsWith(` | ${siteTitle}`) ||
+	title.endsWith(` — ${siteTitle}`);
+const fullTitle = titleIncludesSiteName ? title : `${title} — ${siteTitle}`;
+
+const menuItems = menu.items.filter(
+	(item) => profilePage.exists || stripLangPrefix(item.url) !== PROFILE_URL,
+);
+
+const TRAILING_SLASH = /\/$/;
+// English pages are rendered from the Japanese route, so Astro.url holds
+// the path without /en. `pagePath` is that path; `currentPath` is the URL
+// the visitor actually opened.
+const pagePath = stripLangPrefix(Astro.url.pathname.replace(TRAILING_SLASH, "") || "/");
+const currentPath = localizePath(pagePath, lang);
+
+// Pages hidden from search engines don't name a preferred URL.
+const siteUrl = (settingsResult.data.url || Astro.url.origin).replace(TRAILING_SLASH, "");
+const canonicalUrl =
+	canonical ?? (robots?.includes("noindex") ? undefined : `${siteUrl}${currentPath}`);
+
+// Build public page context for plugin contributions
+// SEO data is passed here and rendered securely by EmDashHead
+const pageCtx = createPublicPageContext({
+	Astro,
+	kind: content ? "content" : "custom",
+	pageType: type,
+	title: fullTitle,
+	pageTitle: pageTitle ?? title,
+	description,
+	canonical: canonicalUrl,
+	image,
+	content,
+	seo: { ogImage: image, robots },
+	articleMeta: { publishedTime, modifiedTime, author },
+	siteName: siteTitle,
+});
+
+// Check if user is logged in (for showing admin link)
+const isLoggedIn = !!Astro.locals.user;
+
+// The language switcher's targets. The search page keeps its query.
+const query = pagePath === "/search" ? Astro.url.search : "";
+const langLinks = LANGS.map((code) => ({
+	code,
+	href: alternates?.[code] ?? `${localizePath(pagePath, code)}${query}`,
+}));
+const hreflangLinks = langLinks.filter((link) => contentLangs.includes(link.code));
+
+/** "page" for the current page, "true" for its parent section (e.g. ブログ on a post). */
+function navCurrent(url: string): "page" | "true" | undefined {
+	let target: URL;
+	try {
+		target = new URL(url, Astro.url);
+	} catch {
+		return undefined;
+	}
+	if (target.origin !== Astro.url.origin || target.hash) return undefined;
+	if (target.search && target.search !== Astro.url.search) return undefined;
+	const path = target.pathname.replace(TRAILING_SLASH, "") || "/";
+	if (path === currentPath) return "page";
+	if (path !== localizePath("/", lang) && currentPath.startsWith(`${path}/`)) return "true";
+	return undefined;
+}
+
+/** Icon for a menu item, picked from where it points. */
+function menuIcon(url: string): MenuIcon {
+	const path = stripLangPrefix(url.replace(TRAILING_SLASH, "") || "/");
+	if (path === "/") return "home";
+	if (path === "/posts" || path.startsWith("/posts/")) return "blog";
+	if (path === "/works" || path.startsWith("/works/")) return "works";
+	if (path.startsWith("/pages/")) return "person";
+	return "link";
+}
+
+// Live search results on English pages open the English (or fallback) page.
+const EN_SEARCH_ROUTES = {
+	posts: "/en/posts/:slug",
+	works: "/en/works/:slug",
+	pages: "/en/pages/:slug",
+};
+
+const year = new Date().getFullYear();
+const photo = siteLogo?.url ?? null;
+
+const siteMenuProps = {
+	items: menuItems.map((item) => ({
+		label: item.label,
+		url: item.url,
+		target: item.target,
+		icon: menuIcon(item.url),
+		current: navCurrent(item.url),
+	})),
+	siteTitle,
+	photo,
+	homeHref: localizePath("/", lang),
+	isLoggedIn,
+};
+---
+
+<!doctype html>
+<html lang={lang}>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<Font cssVariable="--font-body" />
+		<Font cssVariable="--font-mono" />
+		<title>{fullTitle}</title>
+		<EmDashHead page={pageCtx} />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title={t.rssTitle(siteTitle)}
+			href="/rss.xml"
+		/>
+		{
+			hreflangLinks.length > 1 &&
+				hreflangLinks.map((link) => (
+					<link
+						rel="alternate"
+						hreflang={link.code}
+						href={new URL(link.href, Astro.url.origin).href}
+					/>
+				))
+		}
+	</head>
+	<body>
+		<EmDashBodyStart page={pageCtx} />
+		<a href="#main" class="skip-link">{t.skipToContent}</a>
+
+		<!-- Phones: the sidebar sits under the main card, so keep a way to reach the menu up top -->
+		<header class="mobile-bar">
+			<a href={localizePath("/", lang)} class="mobile-bar__brand">
+				<Avatar name={siteTitle} photo={photo} size={36} />
+				<span>{siteTitle}</span>
+			</a>
+			<div class="mobile-bar__actions">
+				<a
+					href={localizePath("/search", lang)}
+					class="icon-btn mobile-bar__icon"
+					aria-label={t.search}
+					title={t.search}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+						><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg
+					>
+				</a>
+				{
+					langLinks
+						.filter((link) => link.code !== lang)
+						.map((link) => (
+							<a
+								href={link.href}
+								hreflang={link.code}
+								class="icon-btn mobile-bar__icon"
+								aria-label={t.chooseLanguage}
+								aria-haspopup="dialog"
+								title={t.chooseLanguage}
+								data-open-dialog="lang-dialog"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+									><circle cx="12" cy="12" r="9"></circle><path
+										d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"
+									></path></svg
+								>
+							</a>
+						))
+				}
+				<a
+					href="#site-menu"
+					class="icon-btn mobile-bar__icon"
+					aria-label={t.menu}
+					aria-haspopup="dialog"
+					title={t.menu}
+					data-open-dialog="menu-drawer"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg
+					>
+				</a>
+			</div>
+		</header>
+
+		<!--
+			Phone dialogs. The top-bar links above open them; without JavaScript
+			those links still work (other language / jump to the sidebar menu).
+		-->
+		<dialog id="lang-dialog" class="sheet sheet--center" aria-labelledby="lang-dialog-title">
+			<div class="sheet__panel">
+				<div class="sheet__head">
+					<h2 id="lang-dialog-title" class="sheet__title">{t.chooseLanguage}</h2>
+					<button type="button" class="icon-btn" aria-label={t.close} data-close-dialog>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg
+						>
+					</button>
+				</div>
+				<ul class="lang-options">
+					{
+						langLinks.map((link) => (
+							<li>
+								<a
+									href={link.href}
+									hreflang={link.code}
+									lang={link.code}
+									class="lang-option"
+									aria-current={link.code === lang ? "true" : undefined}
+								>
+									{LANG_NAMES[link.code]}
+									{link.code === lang && (
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+										>
+											<path d="m5 12 5 5 9-10" />
+										</svg>
+									)}
+								</a>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</dialog>
+
+		<dialog id="menu-drawer" class="sheet sheet--drawer" aria-label={t.menu}>
+			<div class="sheet__panel">
+				<div class="sheet__head sheet__head--end">
+					<button type="button" class="icon-btn" aria-label={t.close} data-close-dialog>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg
+						>
+					</button>
+				</div>
+				<SiteMenu {...siteMenuProps} />
+			</div>
+		</dialog>
+
+		<div class="layout">
+			<main id="main" class="main-card" tabindex="-1">
+				<slot />
+			</main>
+
+			<aside class="sidebar" aria-label={t.sidebar}>
+				<nav class="lang-switch" aria-label={t.language}>
+					<svg
+						class="lang-switch__icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+						><circle cx="12" cy="12" r="9"></circle><path
+							d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"
+						></path></svg
+					>
+					{
+						langLinks.map((link) => (
+							<a
+								href={link.href}
+								hreflang={link.code}
+								lang={link.code}
+								class="lang-switch__link"
+								aria-current={link.code === lang ? "true" : undefined}
+							>
+								{LANG_NAMES[link.code]}
+							</a>
+						))
+					}
+				</nav>
+
+				<slot name="sidebar-top">
+					<div class="side-search" role="search" aria-label={t.searchSiteLabel}>
+						<label for="side-search-input" class="side-search__label">
+							{t.searchSite}
+						</label>
+						<LiveSearch
+							placeholder={t.searchPlaceholder}
+							searchPage={localizePath("/search", lang)}
+							locale={lang === "en" ? null : "ja"}
+							routeMap={lang === "en" ? EN_SEARCH_ROUTES : undefined}
+							class="side-search__field"
+							inputClass="side-search-input"
+							resultsClass="side-search-results"
+							resultClass="side-search-result"
+							collections={["posts", "works", "pages"]}
+						>
+							<div slot="loading" class="emdash-live-search-loading">{t.searching}</div>
+							<div slot="no-results" class="emdash-live-search-no-results">
+								{t.noResults}
+							</div>
+						</LiveSearch>
+					</div>
+				</slot>
+
+				<div class="side-card side-menu" id="site-menu">
+					<SiteMenu {...siteMenuProps} />
+				</div>
+
+				<slot name="sidebar" />
+
+				<p class="side-copy">
+					{
+						lang === "en" ? (
+							<>
+								{`© ${year} ${siteTitle}`} · Made with{" "}
+								<a href="https://emdashcms.com">EmDash</a>
+							</>
+						) : (
+							<>
+								{`© ${year} ${siteTitle}`}・<a href="https://emdashcms.com">EmDash</a>{" "}
+								{t.madeWith}
+							</>
+						)
+					}
+				</p>
+			</aside>
+		</div>
+
+		<!-- A fixed copy of the layout grid, so the button can sit right beside the main card -->
+		<div class="to-top-rail">
+			<div class="to-top-rail__grid">
+				<button
+					type="button"
+					class="to-top"
+					aria-label={t.backToTop}
+					title={t.backToTop}
+					data-to-top
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"><path d="M12 19V5"></path><path d="m6 11 6-6 6 6"></path></svg
+					>
+				</button>
+			</div>
+		</div>
+
+		<p
+			class="toast"
+			role="status"
+			aria-live="polite"
+			data-toast
+			data-copied={t.linkCopied}
+			data-copy-failed={t.copyFailed}
+		>
+		</p>
+
+		<script>
+			// LiveSearch takes no id, so point the sidebar label at its input here
+			document
+				.querySelector(".side-search-input")
+				?.setAttribute("id", "side-search-input");
+
+			// Phone dialogs: the language picker and the slide-in menu
+			const sheets = [...document.querySelectorAll<HTMLDialogElement>("dialog.sheet")];
+			for (const opener of document.querySelectorAll<HTMLElement>("[data-open-dialog]")) {
+				const dialog = document.getElementById(opener.dataset.openDialog ?? "");
+				if (!(dialog instanceof HTMLDialogElement)) continue;
+				opener.addEventListener("click", (event) => {
+					event.preventDefault();
+					dialog.showModal();
+				});
+			}
+			for (const dialog of sheets) {
+				dialog.addEventListener("click", (event) => {
+					const target = event.target as Element;
+					// A click on the dimmed backdrop lands on the dialog itself
+					if (target === dialog || target.closest("[data-close-dialog]")) dialog.close();
+				});
+			}
+			// Both are phone-only: close them if the window widens to the desktop layout
+			window.matchMedia("(min-width: 880px)").addEventListener("change", (event) => {
+				if (event.matches) for (const dialog of sheets) dialog.close();
+			});
+
+			// Back-to-top button: shown once the page has scrolled a screen or so
+			const toTop = document.querySelector<HTMLButtonElement>("[data-to-top]");
+			if (toTop) {
+				let ticking = false;
+				const update = () => {
+					toTop.classList.toggle("is-visible", window.scrollY > 600);
+					ticking = false;
+				};
+				window.addEventListener(
+					"scroll",
+					() => {
+						if (!ticking) {
+							ticking = true;
+							requestAnimationFrame(update);
+						}
+					},
+					{ passive: true },
+				);
+				update();
+
+				toTop.addEventListener("click", () => {
+					const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+					window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+					// Keyboard users continue from the top of the content, not the hidden button
+					document.querySelector<HTMLElement>("#main")?.focus({ preventScroll: true });
+				});
+			}
+
+			// Share / copy-link buttons (see ShareButtons.astro)
+			const toast = document.querySelector<HTMLElement>("[data-toast]");
+			let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+			function showToast(message: string) {
+				if (!toast) return;
+				toast.textContent = message;
+				toast.classList.add("is-visible");
+				clearTimeout(toastTimer);
+				toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2400);
+			}
+
+			async function copyLink(url: string) {
+				try {
+					await navigator.clipboard.writeText(url);
+					showToast(toast?.dataset.copied ?? "");
+				} catch {
+					showToast(toast?.dataset.copyFailed ?? "");
+				}
+			}
+
+			document.addEventListener("click", async (event) => {
+				const target = event.target as Element | null;
+				const shareBtn = target?.closest<HTMLElement>("[data-share]");
+				const copyBtn = target?.closest<HTMLElement>("[data-copy]");
+
+				if (copyBtn?.dataset.copy) {
+					await copyLink(copyBtn.dataset.copy);
+					return;
+				}
+				if (!shareBtn?.dataset.share) return;
+
+				const url = shareBtn.dataset.share;
+				const title = shareBtn.dataset.shareTitle ?? document.title;
+				if (navigator.share) {
+					try {
+						await navigator.share({ title, url });
+					} catch {
+						// Closing the share sheet rejects; nothing to do.
+					}
+				} else {
+					await copyLink(url);
+				}
+			});
+		</script>
+
+		<style is:global>
+			/*
+			 * Establish layer order: "base" has lower priority than unlayered
+			 * styles, so theme.css overrides always win regardless of source
+			 * order in the bundled CSS.
+			 */
+			@layer base;
+
+			@layer base {
+				*:where(:not([class*="emdash"]):not([class*="ec-"])),
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::before,
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::after {
+					box-sizing: border-box;
+				}
+
+				body,
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6,
+				p,
+				ul,
+				ol,
+				figure,
+				blockquote,
+				dl,
+				dd {
+					margin: 0;
+				}
+
+				ul,
+				ol {
+					padding: 0;
+				}
+
+				html {
+					scroll-behavior: smooth;
+					-webkit-text-size-adjust: 100%;
+				}
+
+				:target {
+					scroll-margin-block-start: var(--spacing-6);
+				}
+
+				body {
+					min-height: 100vh;
+					font-family: var(--font-body);
+					font-size: var(--font-size-base);
+					line-height: var(--leading-normal);
+					color: var(--color-text);
+					background: var(--color-bg);
+					-webkit-font-smoothing: antialiased;
+					-moz-osx-font-smoothing: grayscale;
+				}
+
+				main:focus {
+					outline: none;
+				}
+
+				a:where(:not([class*="emdash"]):not([class*="ec-"])) {
+					color: var(--color-brand);
+					text-decoration-line: underline;
+					text-decoration-thickness: 1px;
+					text-underline-offset: 0.2em;
+					transition: color var(--transition-fast);
+				}
+
+				a:where(:not([class*="emdash"]):not([class*="ec-"])):hover {
+					color: var(--color-brand-hover);
+				}
+
+				:where(:not([class*="emdash"]):not([class*="ec-"])):focus-visible {
+					outline: 2px solid var(--color-brand);
+					outline-offset: 2px;
+				}
+
+				img {
+					max-width: 100%;
+					height: auto;
+					display: block;
+				}
+
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6 {
+					font-family: var(--font-heading);
+					line-height: var(--leading-tight);
+					font-weight: var(--font-weight-heading);
+					letter-spacing: var(--tracking-snug);
+					overflow-wrap: break-word;
+				}
+
+				h1 {
+					font-weight: var(--font-weight-display);
+					letter-spacing: var(--tracking-tight);
+				}
+
+				p {
+					text-wrap: pretty;
+				}
+
+				@media (prefers-reduced-motion: reduce) {
+					html {
+						scroll-behavior: auto;
+					}
+
+					*,
+					*::before,
+					*::after {
+						transition-duration: 0.01ms !important;
+						animation-duration: 0.01ms !important;
+						animation-iteration-count: 1 !important;
+					}
+				}
+
+				/* Shared building blocks used by every page */
+
+				.sr-only {
+					position: absolute;
+					width: 1px;
+					height: 1px;
+					padding: 0;
+					margin: -1px;
+					overflow: hidden;
+					clip-path: inset(50%);
+					white-space: nowrap;
+					border: 0;
+				}
+
+				.skip-link {
+					position: fixed;
+					top: var(--spacing-2);
+					inset-inline-start: var(--spacing-2);
+					z-index: 200;
+					padding: var(--spacing-2) var(--spacing-4);
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+					font-size: var(--font-size-sm);
+					font-weight: 700;
+					text-decoration: none;
+					translate: 0 calc(-100% - var(--spacing-4));
+					transition: translate var(--transition-fast);
+				}
+
+				.skip-link:focus-visible {
+					translate: 0 0;
+				}
+
+				/* Sections inside the main card: padded, ruled off with a hairline */
+				.frame {
+					padding-inline: 28px;
+				}
+
+				.band {
+					border-top: 1px solid var(--color-border);
+				}
+
+				.main-card > .band:first-child,
+				.main-card > :first-child > .band:first-child {
+					border-top: 0;
+				}
+
+				.section {
+					padding-block: 28px;
+				}
+
+				.intro {
+					padding-block: 32px 24px;
+				}
+
+				.intro__title {
+					font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2rem);
+					line-height: 1.45;
+				}
+
+				.intro__lead {
+					margin-top: var(--spacing-3);
+					font-size: 17px;
+					color: var(--color-text-secondary);
+					overflow-wrap: break-word;
+				}
+
+				.eyebrow + .intro__title {
+					margin-top: var(--spacing-2);
+				}
+
+				/* Small label above titles */
+				.eyebrow {
+					font-size: 13px;
+					font-weight: 700;
+					line-height: var(--leading-snug);
+					color: var(--color-muted);
+				}
+
+				/* Heading row: title on the start side, link on the end */
+				.section-head {
+					display: flex;
+					flex-wrap: wrap;
+					align-items: baseline;
+					justify-content: space-between;
+					gap: var(--spacing-2) var(--spacing-4);
+					margin-bottom: var(--spacing-5);
+				}
+
+				.arrow-link {
+					display: inline-flex;
+					align-items: center;
+					gap: var(--spacing-1);
+					font-size: var(--font-size-sm);
+					font-weight: 700;
+					text-decoration: none;
+					white-space: nowrap;
+				}
+
+				.arrow-link svg {
+					width: 16px;
+					height: 16px;
+				}
+
+				.arrow-link svg:dir(rtl) {
+					scale: -1 1;
+				}
+
+				/* Top bar of a detail card: back button + label */
+				.card-bar {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					padding: 12px 16px;
+					border-bottom: 1px solid var(--color-border);
+				}
+
+				.icon-btn {
+					display: inline-flex;
+					flex: none;
+					align-items: center;
+					justify-content: center;
+					width: 44px;
+					height: 44px;
+					border-radius: 50%;
+					color: var(--color-text);
+					text-decoration: none;
+					transition: background-color var(--transition-fast);
+				}
+
+				.icon-btn:hover {
+					background: var(--color-fill);
+					color: var(--color-text);
+				}
+
+				.icon-btn svg {
+					width: 20px;
+					height: 20px;
+				}
+
+				.icon-btn svg:dir(rtl) {
+					scale: -1 1;
+				}
+
+				/* Pill buttons */
+				.pill-btn,
+				.btn {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					gap: 8px;
+					min-height: 44px;
+					padding: 10px 22px;
+					border: 0;
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+					font: inherit;
+					font-size: 14px;
+					font-weight: 700;
+					line-height: 1.2;
+					text-decoration: none;
+					cursor: pointer;
+					transition:
+						background-color var(--transition-fast),
+						color var(--transition-fast),
+						box-shadow var(--transition-fast),
+						scale var(--transition-fast);
+				}
+
+				.pill-btn:active,
+				.btn:active {
+					scale: 0.97;
+				}
+
+				.pill-btn svg,
+				.btn svg {
+					width: 18px;
+					height: 18px;
+					flex: none;
+				}
+
+				.pill-btn--brand,
+				.btn {
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+				}
+
+				.pill-btn--brand:hover,
+				.btn:hover {
+					background: var(--color-brand-hover);
+					color: var(--color-on-brand);
+				}
+
+				.pill-btn--ghost,
+				.btn--ghost {
+					background: transparent;
+					box-shadow: inset 0 0 0 2px var(--color-ink);
+					color: var(--color-text);
+				}
+
+				.pill-btn--ghost:hover,
+				.btn--ghost:hover {
+					background: var(--color-fill);
+					color: var(--color-text);
+				}
+
+				.pill-btn--soft {
+					padding-inline: 28px;
+					background: var(--color-fill-strong);
+					color: var(--color-text);
+					font-size: 15px;
+				}
+
+				.pill-btn--soft:hover {
+					background: var(--color-cover-dot-1);
+					color: var(--color-text);
+				}
+
+				/* Chips: tags and stack terms */
+				.chips,
+				.tag-list {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 8px;
+					list-style: none;
+				}
+
+				.chip,
+				.tag-chip {
+					display: inline-block;
+					padding: 4px 12px;
+					border-radius: var(--radius-full);
+					background: var(--color-bg);
+					box-shadow: inset 0 0 0 1px var(--color-border);
+					color: var(--color-text);
+					font-size: 14px;
+					text-decoration: none;
+					transition: background-color var(--transition-fast);
+				}
+
+				a.chip:hover,
+				.tag-chip:hover {
+					background: var(--color-fill);
+					color: var(--color-text);
+				}
+
+				/* Sidebar cards */
+				.side-card {
+					padding: 20px;
+					border-radius: var(--radius-card);
+					background: var(--color-surface);
+					box-shadow: var(--shadow-card);
+				}
+
+				.side-card__title {
+					margin-bottom: 12px;
+					font-size: 18px;
+				}
+
+				/* "Only in Japanese" note on English pages showing a Japanese entry */
+				.lang-notice {
+					margin-top: 16px;
+					padding: 12px 16px;
+					border-radius: 16px;
+					background: var(--color-fill);
+					color: var(--color-text-secondary);
+					font-size: 14px;
+				}
+
+				/* Empty and not-found states */
+				.empty-state {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					gap: var(--spacing-3);
+					max-width: 420px;
+					margin-inline: auto;
+					padding: var(--spacing-12) var(--spacing-6);
+					text-align: center;
+				}
+
+				.empty-state__title {
+					font-size: var(--font-size-xl);
+					font-weight: 700;
+				}
+
+				.empty-state__text {
+					color: var(--color-text-secondary);
+				}
+
+				.empty-state__actions {
+					display: flex;
+					flex-wrap: wrap;
+					justify-content: center;
+					gap: var(--spacing-3);
+					margin-top: var(--spacing-3);
+				}
+
+				@media (max-width: 560px) {
+					.frame {
+						padding-inline: 20px;
+					}
+				}
+			}
+		</style>
+
+		<style>
+			/* Two columns: the main card (max 720px) and the sidebar */
+			.layout {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr);
+				align-items: start;
+				gap: 28px;
+				max-width: var(--layout-width);
+				margin-inline: auto;
+				padding: 24px;
+			}
+
+			.main-card {
+				width: 100%;
+				max-width: var(--main-width);
+				min-width: 0;
+				margin-inline: auto;
+				overflow: hidden;
+				border-radius: var(--radius-xl);
+				background: var(--color-surface);
+				box-shadow: var(--shadow-card);
+			}
+
+			.sidebar {
+				display: flex;
+				flex-direction: column;
+				gap: 20px;
+				width: 100%;
+				max-width: var(--main-width);
+				min-width: 0;
+				margin-inline: auto;
+			}
+
+			@media (min-width: 880px) {
+				.layout {
+					grid-template-columns: minmax(0, var(--main-width)) minmax(240px, 1fr);
+				}
+
+				.main-card,
+				.sidebar {
+					max-width: none;
+					margin-inline: 0;
+				}
+			}
+
+			/*
+			 * Phones and narrow windows: no sidebar. Search, language and the
+			 * menu are reached from the icons in the top bar instead.
+			 */
+			@media (max-width: 879.98px) {
+				.sidebar {
+					display: none;
+				}
+			}
+
+			@media (max-width: 560px) {
+				.layout {
+					gap: 20px;
+					padding: 0 12px 24px;
+				}
+
+				.main-card {
+					border-radius: var(--radius-card);
+				}
+			}
+
+			/* Phone top bar */
+			.mobile-bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				max-width: calc(var(--main-width) + 48px);
+				margin-inline: auto;
+				padding: 12px 24px 0;
+			}
+
+			.mobile-bar__brand {
+				display: inline-flex;
+				align-items: center;
+				gap: 10px;
+				min-height: 44px;
+				color: var(--color-text);
+				font-weight: 700;
+				text-decoration: none;
+			}
+
+			/* Icon-only language and menu buttons; names come from aria-label */
+			.mobile-bar__icon svg {
+				width: 22px;
+				height: 22px;
+			}
+
+			@media (max-width: 560px) {
+				.mobile-bar {
+					padding: 8px 12px 8px 16px;
+				}
+			}
+
+			.mobile-bar__actions {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+
+			@media (min-width: 880px) {
+				.mobile-bar {
+					display: none;
+				}
+			}
+
+			/* Language switcher: a two-way segmented control */
+			.lang-switch {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+				padding: 4px;
+				border-radius: var(--radius-full);
+				background: var(--color-fill);
+			}
+
+			.lang-switch__icon {
+				flex: none;
+				width: 20px;
+				height: 20px;
+				margin-inline: 10px 2px;
+				color: var(--color-muted);
+			}
+
+			.lang-switch__link {
+				display: flex;
+				flex: 1 1 0;
+				align-items: center;
+				justify-content: center;
+				min-height: 44px;
+				padding: 8px 12px;
+				border-radius: var(--radius-full);
+				color: var(--color-text-secondary);
+				font-size: 14px;
+				font-weight: 700;
+				text-decoration: none;
+				transition:
+					background-color var(--transition-fast),
+					color var(--transition-fast);
+			}
+
+			.lang-switch__link:hover {
+				background: var(--color-fill-strong);
+				color: var(--color-text);
+			}
+
+			.lang-switch__link[aria-current="true"] {
+				background: var(--color-surface);
+				box-shadow: var(--shadow-card);
+				color: var(--color-text);
+			}
+
+			/* Sidebar search */
+			.side-search {
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+			}
+
+			.side-search__label {
+				font-size: 14px;
+				font-weight: 700;
+			}
+
+			.side-search :global(.side-search__field) {
+				display: block;
+				position: relative;
+				width: 100%;
+			}
+
+			.side-search :global(.side-search-input) {
+				box-sizing: border-box;
+				width: 100%;
+				height: 44px;
+				padding: 0 18px;
+				border: 1px solid var(--color-border-strong);
+				border-radius: var(--radius-full);
+				background: var(--color-surface);
+				color: var(--color-text);
+				font-family: var(--font-body);
+				font-size: 15px;
+				transition:
+					border-color var(--transition-fast),
+					box-shadow var(--transition-fast);
+			}
+
+			.side-search :global(.side-search-input)::placeholder {
+				color: var(--color-muted);
+			}
+
+			.side-search :global(.side-search-input):focus {
+				outline: 2px solid transparent;
+				border-color: var(--color-brand);
+				box-shadow: 0 0 0 3px var(--color-brand-ring);
+			}
+
+			.side-search :global(.side-search-results) {
+				top: calc(100% + 8px);
+				inset-inline: 0;
+				width: 100%;
+				margin-top: 0;
+				padding: 6px;
+				border: 0;
+				border-radius: 18px;
+				background: var(--color-surface);
+				box-shadow: var(--shadow-lg);
+				max-height: min(420px, 70vh);
+				overflow-y: auto;
+				z-index: 60;
+			}
+
+			.side-search :global(.emdash-live-search-loading),
+			.side-search :global(.emdash-live-search-no-results) {
+				padding: var(--spacing-4);
+				text-align: center;
+				color: var(--color-muted);
+				font-size: var(--font-size-sm);
+			}
+
+			.side-search :global(.side-search-result) {
+				display: grid;
+				gap: 2px;
+				padding: 10px 12px;
+				border: 0;
+				border-radius: 14px;
+				color: var(--color-text);
+				text-decoration: none;
+			}
+
+			.side-search :global(.side-search-result):hover,
+			.side-search :global(.side-search-result):focus,
+			.side-search :global(.side-search-result.focused) {
+				background: var(--color-fill);
+				outline: 2px solid transparent;
+				outline-offset: -2px;
+			}
+
+			.side-search :global(.emdash-live-search-result-title) {
+				order: 2;
+				font-size: var(--font-size-sm);
+				font-weight: 700;
+			}
+
+			.side-search :global(.emdash-live-search-result-collection) {
+				order: 1;
+				font-size: 12px;
+				color: var(--color-muted);
+			}
+
+			.side-search :global(.emdash-live-search-result-snippet) {
+				order: 3;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				font-size: var(--font-size-xs);
+				line-height: var(--leading-snug);
+				color: var(--color-text-secondary);
+			}
+
+			.side-search :global(.emdash-live-search-result-snippet mark) {
+				padding: 0 2px;
+				border-radius: 3px;
+				background: var(--color-fill-strong);
+				color: var(--color-text);
+			}
+
+			/* Sidebar menu card */
+			.side-menu {
+				padding: 16px;
+			}
+
+			.side-copy {
+				padding: 0 8px;
+				font-size: 13px;
+				color: var(--color-muted);
+			}
+
+			.side-copy a {
+				color: inherit;
+			}
+
+			/* Share / copy feedback */
+			.toast {
+				position: fixed;
+				inset-inline: 0;
+				bottom: 24px;
+				z-index: 100;
+				width: max-content;
+				max-width: calc(100% - 32px);
+				margin-inline: auto;
+				padding: 10px 20px;
+				border-radius: var(--radius-full);
+				background: var(--color-ink);
+				color: var(--color-on-ink);
+				font-size: 14px;
+				font-weight: 700;
+				opacity: 0;
+				translate: 0 8px;
+				pointer-events: none;
+				transition:
+					opacity var(--transition-base),
+					translate var(--transition-base);
+			}
+
+			/*
+			 * Phone dialogs (<dialog class="sheet">): a centred card for the
+			 * language picker and a drawer that slides in from the right for the
+			 * menu. They fade/slide in and out where the browser supports it.
+			 */
+			:global(html:has(dialog.sheet[open])) {
+				overflow: hidden;
+			}
+
+			.sheet {
+				max-width: none;
+				max-height: none;
+				padding: 0;
+				border: 0;
+				background: transparent;
+				color: var(--color-text);
+				opacity: 0;
+				transition:
+					opacity 220ms ease,
+					translate 260ms ease,
+					overlay 260ms allow-discrete,
+					display 260ms allow-discrete;
+			}
+
+			.sheet[open] {
+				opacity: 1;
+				translate: 0 0;
+			}
+
+			.sheet::backdrop {
+				background: rgb(40 28 22 / 0);
+				transition:
+					background-color 260ms ease,
+					overlay 260ms allow-discrete,
+					display 260ms allow-discrete;
+			}
+
+			.sheet[open]::backdrop {
+				background: rgb(40 28 22 / 0.4);
+			}
+
+			@starting-style {
+				.sheet[open] {
+					opacity: 0;
+				}
+
+				.sheet[open]::backdrop {
+					background: rgb(40 28 22 / 0);
+				}
+			}
+
+			.sheet__panel {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				height: 100%;
+				padding: 16px;
+				overflow-y: auto;
+				background: var(--color-surface);
+			}
+
+			.sheet__head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+			}
+
+			.sheet__head--end {
+				justify-content: flex-end;
+			}
+
+			.sheet__title {
+				padding-inline-start: 8px;
+				font-size: 18px;
+			}
+
+			/* Language picker: a card in the middle of the screen */
+			.sheet--center {
+				width: min(360px, calc(100% - 32px));
+				translate: 0 16px;
+			}
+
+			@starting-style {
+				.sheet--center[open] {
+					translate: 0 16px;
+				}
+			}
+
+			.sheet--center .sheet__panel {
+				padding: 16px 16px 20px;
+				border-radius: var(--radius-card);
+				box-shadow: var(--shadow-card-hover);
+			}
+
+			.lang-options {
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+				list-style: none;
+			}
+
+			.lang-option {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				min-height: 52px;
+				padding: 12px 20px;
+				border-radius: var(--radius-full);
+				color: var(--color-text);
+				font-size: 16px;
+				font-weight: 700;
+				text-decoration: none;
+				transition: background-color var(--transition-fast);
+			}
+
+			.lang-option:hover {
+				background: var(--color-fill);
+				color: var(--color-text);
+			}
+
+			.lang-option[aria-current="true"] {
+				background: var(--color-fill);
+				color: var(--color-brand);
+			}
+
+			.lang-option svg {
+				width: 20px;
+				height: 20px;
+			}
+
+			/* Menu: a full-height drawer from the right edge */
+			.sheet--drawer {
+				width: min(320px, 85vw);
+				height: 100dvh;
+				margin: 0 0 0 auto;
+				translate: 100% 0;
+			}
+
+			@starting-style {
+				.sheet--drawer[open] {
+					translate: 100% 0;
+				}
+			}
+
+			.sheet--drawer .sheet__panel {
+				padding-top: max(12px, env(safe-area-inset-top));
+				padding-bottom: max(16px, env(safe-area-inset-bottom));
+				border-radius: var(--radius-card) 0 0 var(--radius-card);
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.sheet,
+				.sheet::backdrop {
+					transition: none;
+				}
+			}
+
+			/*
+			 * Back-to-top button. The rail repeats the .layout grid in a fixed
+			 * strip at the bottom of the screen, so the button lines up with the
+			 * main card: inside its bottom-right corner on narrow screens, and
+			 * centred on the gap beside it once the sidebar sits alongside.
+			 */
+			.to-top-rail {
+				position: fixed;
+				inset-inline: 0;
+				bottom: max(20px, env(safe-area-inset-bottom));
+				z-index: 90;
+				pointer-events: none;
+			}
+
+			.to-top-rail__grid {
+				display: grid;
+				grid-template-columns: minmax(0, var(--main-width));
+				justify-content: center;
+				gap: 28px;
+				max-width: var(--layout-width);
+				margin-inline: auto;
+				padding-inline: 24px;
+			}
+
+			/* Hidden (and out of the tab order) until scrolled */
+			.to-top {
+				display: flex;
+				justify-self: end;
+				align-items: center;
+				justify-content: center;
+				width: 52px;
+				height: 52px;
+				margin-inline-end: 12px;
+				padding: 0;
+				border: 0;
+				border-radius: 50%;
+				/* See-through, so the text underneath stays readable */
+				background: color-mix(in srgb, var(--color-brand) 60%, transparent);
+				color: var(--color-on-brand);
+				cursor: pointer;
+				pointer-events: auto;
+				opacity: 0;
+				visibility: hidden;
+				translate: 0 12px;
+				transition:
+					opacity 200ms ease,
+					translate 200ms ease,
+					visibility 200ms,
+					background-color var(--transition-fast);
+			}
+
+			.to-top.is-visible {
+				opacity: 1;
+				visibility: visible;
+				translate: 0 0;
+			}
+
+			.to-top:hover,
+			.to-top:focus-visible {
+				background: var(--color-brand);
+			}
+
+			.to-top svg {
+				width: 24px;
+				height: 24px;
+			}
+
+			@media (min-width: 880px) {
+				.to-top-rail__grid {
+					grid-template-columns: minmax(0, var(--main-width)) minmax(240px, 1fr);
+					justify-content: stretch;
+				}
+
+				/* Centred on the 28px gap between the main card and the sidebar */
+				.to-top {
+					margin-inline-end: -40px;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.to-top {
+					transition: none;
+				}
+			}
+
+			@media (max-width: 560px) {
+				.to-top-rail {
+					bottom: max(16px, env(safe-area-inset-bottom));
+				}
+
+				.to-top-rail__grid {
+					padding-inline: 12px;
+				}
+
+				.to-top {
+					width: 48px;
+					height: 48px;
+				}
+			}
+
+			.toast:empty {
+				padding: 0;
+			}
+
+			.toast.is-visible {
+				opacity: 1;
+				translate: 0 0;
+			}
+
+			@media (forced-colors: active) {
+				.side-menu__link[aria-current],
+				.to-top {
+					border: 1px solid CanvasText;
+				}
+			}
+		</style>
+		<EmDashBodyEnd page={pageCtx} />
+	</body>
+</html>

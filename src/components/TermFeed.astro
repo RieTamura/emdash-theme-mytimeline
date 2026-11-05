@@ -1,0 +1,91 @@
+---
+import { getSiteSettings, type CacheHint, type TaxonomyTerm } from "emdash";
+import Base from "../layouts/Base.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
+import Timeline from "./Timeline.astro";
+import SidebarTaxonomies from "./SidebarTaxonomies.astro";
+import {
+	loadLocalized,
+	PAGE_SIZE,
+	postsToEntries,
+	readPage,
+	termLabeler,
+} from "../utils/timeline";
+import { getLang, localizePath, ui } from "../utils/i18n";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
+
+/** Posts in one category or tag, as timeline rows. Used by /category/[slug] and /tag/[slug]. */
+interface Props {
+	taxonomy: "category" | "tag";
+	term: TaxonomyTerm;
+	termsCacheHint?: CacheHint;
+}
+
+const { taxonomy, term, termsCacheHint } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+const noun = taxonomy === "category" ? t.category : t.tag;
+
+const names = await termLabeler(taxonomy, lang);
+
+const page = readPage(Astro.url);
+const [posts, settings] = await Promise.all([
+	loadLocalized("posts", lang, { [taxonomy]: term.slug }),
+	getSiteSettings(),
+]);
+
+if (Astro.cache?.enabled) {
+	for (const hint of [termsCacheHint, names.cacheHint, ...posts.cacheHints]) {
+		if (hint) Astro.cache.set(hint);
+	}
+}
+
+const { siteTitle, siteLogo } = resolveBlogSiteIdentity(settings);
+const author = { name: siteTitle, photo: siteLogo?.url ?? null };
+const start = (page - 1) * PAGE_SIZE;
+const entries = await postsToEntries(posts.entries.slice(start, start + PAGE_SIZE), lang);
+const basePath = localizePath(`/${taxonomy}/${term.slug}`, lang);
+const label = names.label(term);
+const heading = taxonomy === "category" ? label : `# ${label}`;
+---
+
+<Base
+	title={t.termTitle(label)}
+	description={(lang === "ja" && term.description) || t.termDescription(noun, label)}
+	robots={taxonomy === "tag" || page > 1 ? "noindex, follow" : undefined}
+>
+	<div class="card-bar">
+		<a href={localizePath("/posts", lang)} class="icon-btn" aria-label={t.backToBlog}>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg
+			>
+		</a>
+		<Breadcrumbs items={[{ label: t.tabPosts, href: localizePath("/posts", lang) }, { label }]} />
+	</div>
+
+	<header class="intro frame">
+		<h1 class="intro__title">{heading}</h1>
+		<p class="intro__lead">
+			{(lang === "ja" && term.description) || t.termLead(label)}
+		</p>
+	</header>
+
+	<div class="band">
+		<Timeline
+			entries={entries}
+			author={author}
+			basePath={basePath}
+			page={page}
+			hasMore={posts.entries.length > start + PAGE_SIZE}
+			emptyTitle={t.emptyPosts}
+		/>
+	</div>
+
+	<SidebarTaxonomies slot="sidebar" />
+</Base>

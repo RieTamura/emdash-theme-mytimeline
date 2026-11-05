@@ -1,0 +1,191 @@
+---
+import Avatar from "./Avatar.astro";
+import SocialLinks from "./SocialLinks.astro";
+import { getLang, ui } from "../utils/i18n";
+
+/**
+ * The site menu: brand, main links, SNS icons and the RSS button.
+ * Rendered twice by Base.astro -- in the sidebar card, and in the phone
+ * slide-in drawer.
+ */
+export type MenuIcon = "home" | "blog" | "works" | "person" | "link";
+
+interface Props {
+	items: Array<{
+		label: string;
+		url: string;
+		target?: string;
+		icon: MenuIcon;
+		current?: "page" | "true";
+	}>;
+	siteTitle: string;
+	photo: string | null;
+	homeHref: string;
+	isLoggedIn: boolean;
+}
+
+const { items: menuItems, siteTitle, photo, homeHref, isLoggedIn } = Astro.props;
+const t = ui[getLang(Astro)];
+---
+
+<div class="site-menu">
+	<a href={homeHref} class="side-menu__brand">
+		<Avatar name={siteTitle} photo={photo} size={44} />
+		<span>{siteTitle}</span>
+	</a>
+	{
+		menuItems.length > 0 && (
+			<nav class="side-menu__nav" aria-label={t.mainMenu}>
+				{menuItems.map((item) => {
+					const icon = item.icon;
+					return (
+						<a
+							href={item.url}
+							target={item.target}
+							rel={
+								item.target === "_blank"
+									? "noopener noreferrer"
+									: undefined
+							}
+							aria-current={item.current}
+							class="side-menu__link"
+						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								{icon === "home" && (
+									<>
+										<path d="M3 11 12 4l9 7" />
+										<path d="M5 10v10h14V10" />
+									</>
+								)}
+								{icon === "blog" && (
+									<>
+										<path d="M5 4h14v16H5z" />
+										<path d="M9 9h6M9 13h6M9 17h3" />
+									</>
+								)}
+								{icon === "works" && (
+									<>
+										<rect x="3" y="4" width="18" height="16" rx="3" />
+										<path d="m8 10-2 2 2 2M16 10l2 2-2 2" />
+									</>
+								)}
+								{icon === "person" && (
+									<>
+										<circle cx="12" cy="8" r="4" />
+										<path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+									</>
+								)}
+								{icon === "link" && <circle cx="12" cy="12" r="3" />}
+							</svg>
+							{item.label}
+						</a>
+					);
+				})}
+				{isLoggedIn && (
+					<a href="/_emdash/admin" class="side-menu__link">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<circle cx="12" cy="12" r="3" />
+							<path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" />
+						</svg>
+						{t.admin}
+					</a>
+				)}
+			</nav>
+		)
+	}
+	<SocialLinks class="side-menu__social" />
+	<a href="/rss.xml" type="application/rss+xml" class="pill-btn pill-btn--brand side-menu__rss">
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			aria-hidden="true"
+			><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"
+			></path><circle cx="5" cy="19" r="1"></circle></svg
+		>
+		{t.rssFollow}
+	</a>
+</div>
+
+<style>
+	.site-menu {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.side-menu__brand {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 4px 8px 8px;
+		color: var(--color-text);
+		font-size: 20px;
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.side-menu__brand:hover {
+		color: var(--color-text);
+	}
+
+	.side-menu__nav {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.side-menu__link {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		min-height: 44px;
+		padding: 10px 16px;
+		border-radius: var(--radius-full);
+		color: var(--color-text);
+		font-weight: 700;
+		text-decoration: none;
+		transition: background-color var(--transition-fast);
+	}
+
+	.side-menu__link:hover,
+	.side-menu__link[aria-current] {
+		background: var(--color-fill);
+		color: var(--color-text);
+	}
+
+	.side-menu__link svg {
+		width: 22px;
+		height: 22px;
+		flex: none;
+	}
+
+	.site-menu :global(.side-menu__social) {
+		justify-content: flex-start;
+		padding: 4px 0 0 4px;
+	}
+
+	.side-menu__rss {
+		margin-top: 4px;
+		padding-block: 14px;
+		font-size: 16px;
+	}
+</style>

@@ -1,0 +1,87 @@
+---
+import Avatar from "./Avatar.astro";
+import SocialLinks from "./SocialLinks.astro";
+import { getLang, localizePath, ui } from "../utils/i18n";
+import { loadProfilePage, PROFILE_URL } from "../utils/site-identity";
+
+/** "この記事を書いた人": the site owner, with a link to the profile page. */
+interface Props {
+	name: string;
+	tagline?: string | null;
+	photo?: string | null;
+	/** CSS colour from getPostLayout() */
+	background: string;
+	/** Two copies can be on one page, so each heading needs its own id. */
+	id: string;
+}
+
+const { name, tagline, photo, background, id } = Astro.props;
+const lang = getLang(Astro);
+const t = ui[lang];
+const profilePage = await loadProfilePage();
+---
+
+<section
+	class:list={["author-card", { "author-card--tinted": background !== "var(--color-surface)" }]}
+	style={`background: ${background}`}
+	aria-labelledby={id}
+>
+	<h2 id={id} class="author-card__heading">{t.authorHeading}</h2>
+	<div class="author-card__who">
+		<Avatar name={name} photo={photo} size={56} />
+		<div class="author-card__text">
+			{
+				profilePage.exists ? (
+					<a href={localizePath(PROFILE_URL, lang)} class="author-card__name">{name}</a>
+				) : (
+					<span class="author-card__name">{name}</span>
+				)
+			}
+			{tagline && <p class="author-card__tagline">{tagline}</p>}
+		</div>
+	</div>
+	<SocialLinks class="author-card__links" />
+</section>
+
+<style>
+	.author-card {
+		padding: 20px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-card);
+	}
+
+	.author-card__heading {
+		margin-bottom: 12px;
+		font-size: 16px;
+	}
+
+	.author-card__who {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.author-card__text {
+		min-width: 0;
+	}
+
+	.author-card__name {
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.author-card__tagline {
+		margin-top: 2px;
+		color: var(--color-text-secondary);
+		font-size: 14px;
+	}
+
+	.author-card :global(.author-card__links) {
+		margin-top: 12px;
+	}
+
+	/* The icons' usual circle would vanish into a coloured card */
+	.author-card--tinted :global(.social__link) {
+		background: var(--color-surface);
+	}
+</style>

@@ -1,0 +1,128 @@
+{
+  "id": "post-layout",
+  "version": "0.3.0",
+  "declaredAccess": {},
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {},
+  "hooks": [
+    "page:metadata"
+  ],
+  "routes": [],
+  "admin": {
+    "settingsSchema": {
+      "authorPosition": {
+        "label": "Author card / この記事を書いた人",
+        "description": "In the sidebar, it moves below the article on small screens. / サイドバーを選ぶと、小さい画面では記事の下に出ます。",
+        "type": "select",
+        "options": [
+          {
+            "value": "after",
+            "label": "Below the article / 記事の下"
+          },
+          {
+            "value": "before",
+            "label": "Above the article / 記事の上"
+          },
+          {
+            "value": "sidebar",
+            "label": "Sidebar / サイドバー"
+          },
+          {
+            "value": "off",
+            "label": "Hide / 表示しない"
+          }
+        ],
+        "default": "after"
+      },
+      "authorBackground": {
+        "label": "Author card background / この記事を書いた人の背景色",
+        "type": "select",
+        "options": [
+          {
+            "value": "surface",
+            "label": "White / 白"
+          },
+          {
+            "value": "fill",
+            "label": "Light blue / 水色"
+          },
+          {
+            "value": "mint",
+            "label": "Mint / ミント"
+          },
+          {
+            "value": "butter",
+            "label": "Cream / クリーム"
+          }
+        ],
+        "default": "surface"
+      },
+      "relatedPosition": {
+        "label": "Related posts / 関連記事",
+        "description": "Posts that share a category or tag. In the sidebar, they move below the article on small screens. / 同じカテゴリーやタグの記事です。サイドバーを選ぶと、小さい画面では記事の下に出ます。",
+        "type": "select",
+        "options": [
+          {
+            "value": "after",
+            "label": "Below the article / 記事の下"
+          },
+          {
+            "value": "sidebar",
+            "label": "Sidebar / サイドバー"
+          },
+          {
+            "value": "off",
+            "label": "Hide / 表示しない"
+          }
+        ],
+        "default": "after"
+      },
+      "updatedPosition": {
+        "label": "Updated date / 更新日",
+        "description": "Shown only when the post was updated on a later day than it was published. / 公開日より後の日に更新した記事にだけ出ます。",
+        "type": "select",
+        "options": [
+          {
+            "value": "dateline",
+            "label": "Next to the published date / 公開日の横"
+          },
+          {
+            "value": "after",
+            "label": "Below the article / 記事の下"
+          },
+          {
+            "value": "off",
+            "label": "Hide / 表示しない"
+          }
+        ],
+        "default": "dateline"
+      },
+      "aroundBackground": {
+        "label": "Previous and next posts background / 前後の投稿の背景色",
+        "type": "select",
+        "options": [
+          {
+            "value": "surface",
+            "label": "White / 白"
+          },
+          {
+            "value": "fill",
+            "label": "Light blue / 水色"
+          },
+          {
+            "value": "mint",
+            "label": "Mint / ミント"
+          },
+          {
+            "value": "butter",
+            "label": "Cream / クリーム"
+          }
+        ],
+        "default": "surface"
+      }
+    },
+    "pages": [],
+    "widgets": []
+  }
+}

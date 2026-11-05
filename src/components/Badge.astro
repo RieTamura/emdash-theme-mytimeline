@@ -1,0 +1,52 @@
+---
+import type { BadgeTone } from "../utils/timeline";
+
+interface Props {
+	tone: BadgeTone;
+	size?: "sm" | "md";
+}
+
+const { tone, size = "sm" } = Astro.props;
+---
+
+<span class:list={["badge", `badge--${tone}`, `badge--${size}`]}><slot /></span>
+
+<style>
+	.badge {
+		display: inline-block;
+		border-radius: var(--radius-full);
+		font-weight: 700;
+		line-height: 1.7;
+		white-space: nowrap;
+	}
+
+	.badge--sm {
+		padding: 0 10px;
+		font-size: 12px;
+	}
+
+	.badge--md {
+		padding: 2px 12px;
+		font-size: 13px;
+	}
+
+	.badge--mint {
+		background: var(--color-cat-mint-bg);
+		color: var(--color-cat-mint-text);
+	}
+
+	.badge--peach {
+		background: var(--color-cat-peach-bg);
+		color: var(--color-cat-peach-text);
+	}
+
+	.badge--butter {
+		background: var(--color-cat-butter-bg);
+		color: var(--color-cat-butter-text);
+	}
+
+	.badge--ink {
+		background: var(--color-ink);
+		color: var(--color-on-ink);
+	}
+</style>

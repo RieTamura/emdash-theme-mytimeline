@@ -1,0 +1,126 @@
+---
+import { getTaxonomyTermsWithCacheHint, type TaxonomyTerm } from "emdash";
+import { categoryTone, flattenTerms, termLabeler } from "../utils/timeline";
+import { getLang, localizePath, ui } from "../utils/i18n";
+
+/** Sidebar cards for categories (with counts) and tags. Empty terms are left out. */
+const lang = getLang(Astro);
+const t = ui[lang];
+
+// The Japanese terms are the ones posts are filed under; English pages
+// only swap in the English names.
+const [categories, tags, categoryNames, tagNames] = await Promise.all([
+	getTaxonomyTermsWithCacheHint("category", { locale: "ja" }),
+	getTaxonomyTermsWithCacheHint("tag", { locale: "ja" }),
+	termLabeler("category", lang),
+	termLabeler("tag", lang),
+]);
+if (Astro.cache?.enabled) {
+	for (const hint of [
+		categories.cacheHint,
+		tags.cacheHint,
+		categoryNames.cacheHint,
+		tagNames.cacheHint,
+	]) {
+		if (hint) Astro.cache.set(hint);
+	}
+}
+
+const used = (terms: TaxonomyTerm[]) =>
+	flattenTerms(terms).filter((term) => (term.count ?? 0) > 0);
+const categoryList = used(categories.data);
+const tagList = used(tags.data);
+---
+
+{
+	categoryList.length > 0 && (
+		<section class="side-card" aria-labelledby="side-categories">
+			<h2 id="side-categories" class="side-card__title">
+				{t.categories}
+			</h2>
+			<ul class="side-cats">
+				{categoryList.map((term) => (
+					<li>
+						<a
+							href={localizePath(`/category/${term.slug}`, lang)}
+							class={`side-cats__link side-cats__link--${categoryTone(term.slug)}`}
+						>
+							<span>{categoryNames.label(term)}</span>
+							<span class="side-cats__count">
+								{term.count}
+								<span class="sr-only">{t.countUnit}</span>
+							</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	)
+}
+
+{
+	tagList.length > 0 && (
+		<section class="side-card" aria-labelledby="side-tags">
+			<h2 id="side-tags" class="side-card__title">
+				{t.tags}
+			</h2>
+			<ul class="tag-list">
+				{tagList.map((term) => (
+					<li>
+						<a href={localizePath(`/tag/${term.slug}`, lang)} class="tag-chip">
+							# {tagNames.label(term)}
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	)
+}
+
+<style>
+	.side-cats {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		list-style: none;
+	}
+
+	.side-cats__link {
+		display: flex;
+		justify-content: space-between;
+		min-height: 44px;
+		padding: 10px 12px;
+		border-radius: 14px;
+		color: var(--color-text);
+		text-decoration: none;
+		transition: filter var(--transition-fast);
+	}
+
+	.side-cats__link:hover {
+		filter: brightness(0.97);
+	}
+
+	.side-cats__link--mint {
+		background: var(--color-cat-mint-soft);
+	}
+
+	.side-cats__link--mint .side-cats__count {
+		color: var(--color-cat-mint-count);
+	}
+
+	.side-cats__link--peach {
+		background: var(--color-cat-peach-soft);
+	}
+
+	.side-cats__link--peach .side-cats__count {
+		color: var(--color-cat-peach-count);
+	}
+
+	.side-cats__link--butter {
+		background: var(--color-cat-butter-soft);
+	}
+
+	.side-cats__link--butter .side-cats__count {
+		color: var(--color-cat-butter-count);
+	}
+</style>

@@ -1,0 +1,46 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Worker の名前。公開先の URL にも使われるので、好きな名前に変える。
+	"name": "mytimeline",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		// サイトの URL。README の手順で、最初のデプロイのあとに設定する。
+		// 設定すると画像が縮小して届くようになり、独自ドメインの場合は workers.dev から転送する。
+		// "EMDASH_SITE_URL": "https://example.com",
+	},
+	"workers_dev": true,
+	"preview_urls": false,
+	// 日本から D1 を使うときは、次の行で表示が速くなることがある（README の「表示を速くする」を参照）。
+	// "placement": { "mode": "targeted", "region": "aws:ap-northeast-1" },
+	// 独自ドメインを使うときは、次のように書く。
+	// "routes": [{ "pattern": "example.com", "custom_domain": true }],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "mytimeline",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "mytimeline-media",
+		},
+	],
+	// Sandboxed plugins require Worker Loader, available on Workers paid plans. Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
+	// General maintenance cron trigger
+	"triggers": {
+		"crons": [
+			"* * * * *"
+		],
+	},
+}
