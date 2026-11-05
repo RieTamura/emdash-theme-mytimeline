@@ -27,6 +27,14 @@ You need Node.js and a [Cloudflare account](https://dash.cloudflare.com/sign-up)
 npm create astro@latest -- --template github:RieTamura/emdash-theme-mytimeline
 ```
 
+Move into the folder it created.
+
+```sh
+cd your-folder-name
+```
+
+If you see `Dependencies failed to install`, delete the `node_modules` folder and run `npm install`.
+
 ### 2. Try it locally (optional)
 
 ```sh

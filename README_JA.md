@@ -27,6 +27,14 @@ Node.js と [Cloudflare のアカウント](https://dash.cloudflare.com/sign-up)
 npm create astro@latest -- --template github:RieTamura/emdash-theme-mytimeline
 ```
 
+作ったフォルダーに移動します。
+
+```sh
+cd フォルダーの名前
+```
+
+`Dependencies failed to install` と出たときは、`node_modules` フォルダーを削除してから `npm install` を実行してください。
+
 ### 2. 手元で試す（省略できます）
 
 ```sh
