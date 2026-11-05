@@ -46,6 +46,10 @@ npm run deploy
 
 The first deploy creates the database and other resources. Open `/_emdash/admin` on the address it prints and finish setup right away.
 
+The first deploy also writes the D1 and KV IDs into `wrangler.jsonc`. Keep them, so later deploys use the same resources.
+
+**If you see `has reached the Workers Free limit of 5 cron triggers`:** the free plan allows 5 cron triggers per account. Your site is live, but its cron isn't registered. If you want Bluesky and RSS imports or scheduled posts, free a slot by removing a cron from another Worker, then deploy again. If you don't, remove `triggers` from `wrangler.jsonc` and the error goes away.
+
 ### 4. Set the site's address
 
 **If you skip this, images are delivered at full size and pages get slow.**

@@ -38,5 +38,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RieTamura/emdash-theme-mytimeline.git"
+  },
+  "overrides": {
+    "zod": "4.6.7"
   }
 }

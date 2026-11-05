@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 // The site's address, kept in one place: wrangler.jsonc. A line that is
 // commented out doesn't match, so nothing is set until the owner sets it.
 const siteUrl = readFileSync(new URL("./wrangler.jsonc", import.meta.url), "utf8").match(
-	/^s*"EMDASH_SITE_URL":s*"([^"]+)"/m,
+	/^\s*"EMDASH_SITE_URL":\s*"([^"]+)"/m,
 )?.[1];
 
 // Pages that show Bluesky posts. The plugin publishes from cron, and the purge
